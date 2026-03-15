@@ -1,0 +1,142 @@
+"use server";
+
+import { stripe } from "@/lib/stripe/config";
+import { ConvexHttpClient } from "convex/browser";
+import { api } from "../../../convex/_generated/api";
+import { sendRefundConfirmation } from "./email";
+import { formatCurrency } from "@/lib/utils/format";
+
+const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
+const WEBHOOK_SECRET = process.env.CONVEX_WEBHOOK_SECRET!;
+
+type RefundResult = {
+  success: boolean;
+  data?: { refunded: number; failed: number; skipped: number };
+  error?: string;
+};
+
+export async function processEventRefunds(
+  eventId: string,
+  eventTitle?: string
+): Promise<RefundResult> {
+  try {
+    // Fetch tickets with tier prices
+    const tickets = await convex.query(
+      api.tickets.getTicketsByEventForRefund,
+      { eventId: eventId as never, querySecret: WEBHOOK_SECRET }
+    );
+
+    if (tickets.length === 0) {
+      return { success: true, data: { refunded: 0, failed: 0, skipped: 0 } };
+    }
+
+    // Use provided event title, or fall back to "your event" (public query
+    // won't find cancelled events so we avoid it)
+    const resolvedTitle = eventTitle ?? "your event";
+
+    // Group by stripeSessionId
+    const sessionGroups = new Map<string, typeof tickets>();
+    for (const ticket of tickets) {
+      const group = sessionGroups.get(ticket.stripeSessionId) ?? [];
+      group.push(ticket);
+      sessionGroups.set(ticket.stripeSessionId, group);
+    }
+
+    let refunded = 0;
+    let failed = 0;
+    let skipped = 0;
+
+    // Track refunded buyers for email notifications (email → total centavos)
+    const refundedBuyers = new Map<string, number>();
+
+    for (const [sessionId, sessionTickets] of sessionGroups) {
+      // Skip sessions where all tickets are already processed
+      if (sessionTickets.every((t) => !!t.refundStatus)) {
+        continue;
+      }
+
+      const allFree = sessionTickets.every((t) => t.tierPrice === 0);
+
+      if (allFree) {
+        for (const ticket of sessionTickets) {
+          await convex.mutation(
+            api.tickets.updateTicketRefundStatus,
+            {
+              webhookSecret: WEBHOOK_SECRET,
+              ticketId: ticket._id,
+              refundStatus: "not_applicable",
+            }
+          );
+        }
+        skipped += sessionTickets.length;
+        continue;
+      }
+
+      try {
+        // Retrieve checkout session to get payment intent
+        const session = await stripe.checkout.sessions.retrieve(sessionId);
+        const paymentIntentId = session.payment_intent as string;
+
+        if (!paymentIntentId) {
+          throw new Error("No payment intent found for session");
+        }
+
+        // Create refund
+        const refund = await stripe.refunds.create({
+          payment_intent: paymentIntentId,
+        });
+
+        // Mark tickets as refunded
+        for (const ticket of sessionTickets) {
+          await convex.mutation(
+            api.tickets.updateTicketRefundStatus,
+            {
+              webhookSecret: WEBHOOK_SECRET,
+              ticketId: ticket._id,
+              refundStatus: "refunded",
+              refundedAt: Date.now(),
+              stripeRefundId: refund.id,
+            }
+          );
+
+          // Aggregate refund amount per buyer email
+          const existing = refundedBuyers.get(ticket.buyerEmail) ?? 0;
+          refundedBuyers.set(ticket.buyerEmail, existing + ticket.tierPrice);
+        }
+        refunded += sessionTickets.length;
+      } catch (err) {
+        // Mark tickets as failed, continue processing others
+        for (const ticket of sessionTickets) {
+          await convex.mutation(
+            api.tickets.updateTicketRefundStatus,
+            {
+              webhookSecret: WEBHOOK_SECRET,
+              ticketId: ticket._id,
+              refundStatus: "failed",
+            }
+          );
+        }
+        failed += sessionTickets.length;
+        console.error(`Refund failed for session ${sessionId}:`, err);
+      }
+    }
+
+    // Send refund confirmation emails (fire-and-forget)
+    for (const [email, totalCentavos] of refundedBuyers) {
+      sendRefundConfirmation({
+        buyerEmail: email,
+        eventTitle: resolvedTitle,
+        refundAmount: formatCurrency(totalCentavos),
+      }).catch((err) =>
+        console.error(`Refund email failed for ${email}:`, err)
+      );
+    }
+
+    return { success: true, data: { refunded, failed, skipped } };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Refund processing failed",
+    };
+  }
+}
