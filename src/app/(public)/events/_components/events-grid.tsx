@@ -5,56 +5,34 @@ import { useSearchParams } from "next/navigation";
 import { usePreloadedQuery, useQuery } from "convex/react";
 import type { Preloaded } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
-import { EventCard } from "@/components/custom/event-card";
+import { PosterCard } from "@/components/custom/poster-card";
 import { EventFilterBar } from "@/components/custom/event-filter-bar";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   filterEventsByType,
   filterEventsByDateRange,
 } from "@/lib/utils/event-filters";
 import type { DateRangeFilter } from "@/lib/utils/event-filters";
 
-function EventCardSkeleton() {
-  return (
-    <div className="rounded-lg border overflow-hidden bg-card">
-      <Skeleton className="aspect-video w-full" />
-      <div className="p-4 space-y-2">
-        <Skeleton className="h-5 w-3/4" />
-        <Skeleton className="h-4 w-1/2" />
-        <Skeleton className="h-4 w-1/3" />
-      </div>
-    </div>
-  );
-}
-
 export function EventsGridSkeleton() {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div className="bro-grid" style={{ marginTop: 26 }}>
       {Array.from({ length: 6 }).map((_, i) => (
-        <EventCardSkeleton key={i} />
+        <div className="pskel" key={i} />
       ))}
     </div>
   );
 }
 
 function EmptyState({ hasFilters }: { hasFilters: boolean }) {
-  if (hasFilters) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-lg text-muted-foreground">
-          No events match your filters.
-        </p>
-        <p className="text-sm text-muted-foreground mt-1">
-          Try broadening your search or clearing some filters.
-        </p>
-      </div>
-    );
-  }
   return (
-    <div className="text-center py-12">
-      <p className="text-lg text-muted-foreground">No upcoming events found.</p>
-      <p className="text-sm text-muted-foreground mt-1">
-        Check back soon for new events!
+    <div className="bro-empty">
+      <div style={{ fontWeight: 800, fontSize: 18, color: "var(--ink)" }}>
+        {hasFilters ? "No events match." : "No upcoming events found."}
+      </div>
+      <p style={{ marginTop: 8 }}>
+        {hasFilters
+          ? "Try broadening your search or clearing some filters."
+          : "Check back soon for new events!"}
       </p>
     </div>
   );
@@ -143,31 +121,32 @@ export function EventsGrid({ preloadedEvents }: Props) {
         currentQuery={currentQuery}
         currentLocation={currentLocation}
       />
-      {isInitialLoading ? (
+      {isInitialLoading || isSearchLoading ? (
         <EventsGridSkeleton />
-      ) : filteredEvents.length === 0 && !isSearchLoading ? (
+      ) : filteredEvents.length === 0 ? (
         <EmptyState hasFilters={!!hasActiveFilters} />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredEvents.map((event) => {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const eventIdStr = event._id as any as string;
-            const priceRange = activePriceRanges?.[eventIdStr] ?? null;
-            return (
-              <EventCard
-                key={event._id}
-                eventId={eventIdStr}
-                title={event.title}
-                date={event.date}
-                venueName={event.venueName}
-                eventType={event.eventType}
-                status={event.status}
-                artworkUrl={event.artworkUrl}
-                priceRange={priceRange}
-              />
-            );
-          })}
-        </div>
+        <>
+          <div className="bro-count">
+            {filteredEvents.length}{" "}
+            {filteredEvents.length === 1 ? "event" : "events"}
+            {currentQuery ? ` · “${currentQuery}”` : ""}
+          </div>
+          <div className="bro-grid">
+            {filteredEvents.map((event) => {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const eventIdStr = event._id as any as string;
+              const priceRange = activePriceRanges?.[eventIdStr] ?? null;
+              return (
+                <PosterCard
+                  key={event._id}
+                  event={{ ...event, _id: eventIdStr }}
+                  priceRange={priceRange}
+                />
+              );
+            })}
+          </div>
+        </>
       )}
     </div>
   );

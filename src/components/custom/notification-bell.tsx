@@ -36,6 +36,9 @@ function getNotificationHref(
 }
 
 export function NotificationBell() {
+  const [isPending, setIsPending] = useState(false);
+  const [open, setOpen] = useState(false);
+  const router = useRouter();
   const currentUser = useQuery(api.users.getCurrentUser);
   const unreadCount = useQuery(
     api.notifications.getUnreadCount,
@@ -47,9 +50,6 @@ export function NotificationBell() {
   );
   const markAsRead = useMutation(api.notifications.markAsRead);
   const markAllAsRead = useMutation(api.notifications.markAllAsRead);
-  const [isPending, setIsPending] = useState(false);
-  const [open, setOpen] = useState(false);
-  const router = useRouter();
 
   if (!currentUser) return null;
 

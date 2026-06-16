@@ -1,21 +1,61 @@
 import { query, mutation } from "./_generated/server";
+import type { QueryCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { v, ConvexError } from "convex/values";
+import { v, ConvexError, type GenericId } from "convex/values";
 import { getAuthenticatedUser } from "./lib/auth";
-import { requireAnyRole } from "./lib/roles";
+import { requireAnyRole, requireRole } from "./lib/roles";
 
 const CREATOR_ROLES = ["artist", "organization"];
 const VALID_EVENT_TYPES = ["concert", "racing", "seminar", "class", "other"];
+const VALID_THEMES = ["aurora", "grandprix", "cosmic", "tropical", "fiesta"];
 
 export const createEvent = mutation({
   args: {
     eventType: v.string(),
+    theme: v.optional(v.string()),
+    lineupArtistIds: v.optional(v.array(v.id("users"))),
+    participantIds: v.optional(v.array(v.id("participants"))),
     title: v.string(),
+    tagline: v.optional(v.string()),
     description: v.string(),
     date: v.number(),
     time: v.string(),
+    endTime: v.optional(v.string()),
+    doorsTime: v.optional(v.string()),
+    days: v.optional(
+      v.array(
+        v.object({
+          id: v.string(),
+          label: v.string(),
+          date: v.number(),
+          startTime: v.optional(v.string()),
+          endTime: v.optional(v.string()),
+        })
+      )
+    ),
     venueName: v.optional(v.string()),
     venueId: v.optional(v.string()),
+    city: v.optional(v.string()),
+    locationType: v.optional(v.string()),
+    onlineUrl: v.optional(v.string()),
+    onSaleStart: v.optional(v.number()),
+    onSaleEnd: v.optional(v.number()),
+    maxPerOrder: v.optional(v.number()),
+    visibility: v.optional(v.string()),
+    refundPolicy: v.optional(v.string()),
+    ageRestriction: v.optional(v.string()),
+    goodToKnow: v.optional(v.string()),
+    registrationQuestions: v.optional(
+      v.array(
+        v.object({
+          id: v.string(),
+          label: v.string(),
+          type: v.string(),
+          options: v.optional(v.array(v.string())),
+          required: v.boolean(),
+        })
+      )
+    ),
     artworkStorageId: v.optional(v.id("_storage")),
   },
   handler: async (ctx, args) => {
@@ -26,6 +66,13 @@ export const createEvent = mutation({
     if (!VALID_EVENT_TYPES.includes(args.eventType)) {
       throw new ConvexError(
         `Invalid event type: ${args.eventType}. Must be one of: ${VALID_EVENT_TYPES.join(", ")}`
+      );
+    }
+
+    // Validate theme preset
+    if (args.theme && !VALID_THEMES.includes(args.theme)) {
+      throw new ConvexError(
+        `Invalid theme: ${args.theme}. Must be one of: ${VALID_THEMES.join(", ")}`
       );
     }
 
@@ -62,7 +109,7 @@ export const createEvent = mutation({
     // Resolve venue: if venueId provided, look up venue and use its name
     let resolvedVenueName = args.venueName;
     if (args.venueId) {
-      const venue = await ctx.db.get(args.venueId as any);
+      const venue = await ctx.db.get(args.venueId as GenericId<"venues">);
       if (!venue) throw new ConvexError("Selected venue not found");
       resolvedVenueName = venue.name;
     }
@@ -74,15 +121,40 @@ export const createEvent = mutation({
 
     const now = Date.now();
 
+    if (args.lineupArtistIds && args.lineupArtistIds.length > 20) {
+      throw new ConvexError("A lineup can have at most 20 artists");
+    }
+
     return await ctx.db.insert("events", {
       creatorId: user._id,
       eventType: args.eventType,
+      theme: args.theme,
+      lineupArtistIds: args.lineupArtistIds,
+      participantIds: args.participantIds,
       title,
+      tagline: args.tagline?.trim() || undefined,
       description,
       date: args.date,
       time: args.time,
+      endTime: args.endTime || undefined,
+      doorsTime: args.doorsTime || undefined,
+      days: args.days && args.days.length > 1 ? args.days : undefined,
       venueId: args.venueId,
       venueName: resolvedVenueName,
+      city: args.city?.trim() || undefined,
+      locationType: args.locationType || undefined,
+      onlineUrl: args.onlineUrl?.trim() || undefined,
+      onSaleStart: args.onSaleStart,
+      onSaleEnd: args.onSaleEnd,
+      maxPerOrder: args.maxPerOrder,
+      visibility: args.visibility || undefined,
+      refundPolicy: args.refundPolicy?.trim() || undefined,
+      ageRestriction: args.ageRestriction?.trim() || undefined,
+      goodToKnow: args.goodToKnow?.trim() || undefined,
+      registrationQuestions:
+        args.registrationQuestions && args.registrationQuestions.length > 0
+          ? args.registrationQuestions
+          : undefined,
       artworkStorageId: args.artworkStorageId,
       status: "draft",
       createdAt: now,
@@ -316,6 +388,7 @@ export const cloneEvent = mutation({
     const newEventId = await ctx.db.insert("events", {
       creatorId: user._id,
       eventType: source.eventType,
+      theme: source.theme,
       title: source.title.replace(/ \(Copy\)$/, "") + " (Copy)",
       description: source.description,
       date: 0,
@@ -348,6 +421,195 @@ export const cloneEvent = mutation({
     }
 
     return newEventId;
+  },
+});
+
+// All events for the admin calendar (any status). Lean list for chips/list rows;
+// per-event detail comes from getCalendarEventDetail. Admin only.
+export const getEventsForAdminCalendar = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await getAuthenticatedUser(ctx);
+    requireRole(user, "admin");
+
+    const [events, users] = await Promise.all([
+      ctx.db.query("events").collect(),
+      ctx.db.query("users").collect(),
+    ]);
+    const nameById = new Map(users.map((u) => [u._id as string, u.name]));
+
+    return events.map((e) => ({
+      _id: e._id,
+      title: e.title,
+      date: e.date,
+      time: e.time,
+      status: e.status,
+      theme: e.theme ?? null,
+      eventType: e.eventType,
+      venueName: e.venueName ?? null,
+      creatorName: nameById.get(e.creatorId as string) ?? "Organizer",
+    }));
+  },
+});
+
+// Scope-aware event detail for the calendar drawer (every role uses this).
+// Owners and admins get "full" scope (attendee counts); everyone else "limited"
+// (artists, venue map, and tickets-available only). Non-public events are hidden
+// from non-owners/non-admins.
+export const getCalendarEventDetail = query({
+  args: { eventId: v.id("events") },
+  handler: async (ctx, args) => {
+    const user = await getAuthenticatedUser(ctx);
+    const event = await ctx.db.get(args.eventId);
+    if (!event) return null;
+
+    const isOwner = event.creatorId === user._id;
+    const isAdmin = user.roles.includes("admin");
+    const publicStatuses = ["published", "on_sale", "sold_out", "completed"];
+    if (!isOwner && !isAdmin && !publicStatuses.includes(event.status)) return null;
+    const full = isOwner || isAdmin;
+
+    const tiers = await ctx.db
+      .query("ticketTiers")
+      .withIndex("by_event_id", (q) => q.eq("eventId", event._id))
+      .collect();
+    const maxAttendees = tiers.reduce((s, t) => s + t.quantity, 0);
+    const currentAttendees = tiers.reduce((s, t) => s + t.soldCount, 0);
+    const artworkUrl = event.artworkStorageId
+      ? await ctx.storage.getUrl(event.artworkStorageId)
+      : null;
+    const [creator, profile] = await Promise.all([
+      ctx.db.get(event.creatorId),
+      ctx.db
+        .query("creatorProfiles")
+        .withIndex("by_user_id", (q) => q.eq("userId", event.creatorId))
+        .unique(),
+    ]);
+
+    // Resolve combined lineup names (artist accounts + participant roster).
+    const lineup = await resolveLineupNames(ctx, event);
+
+    return {
+      _id: event._id,
+      title: event.title,
+      description: event.description,
+      theme: event.theme ?? null,
+      eventType: event.eventType,
+      status: event.status,
+      date: event.date,
+      time: event.time,
+      venueName: event.venueName ?? null,
+      artworkUrl,
+      scope: full ? ("full" as const) : ("limited" as const),
+      // Max capacity is visible to everyone; tickets sold is owner/admin only.
+      maxAttendees,
+      currentAttendees: full ? currentAttendees : null,
+      tiers: tiers
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map((t) => ({
+          name: t.name,
+          price: t.price,
+          quantity: t.quantity,
+          available: Math.max(0, t.quantity - t.soldCount),
+        })),
+      creatorName: profile?.displayName ?? creator?.name ?? "Organizer",
+      artistsInvolved: lineup.filter((n): n is string => !!n),
+      // Gap (see BACKOFFICE-INTEGRATION.md): venue map link not modeled yet.
+      hasVenueMap: false,
+    };
+  },
+});
+
+// Edit the extended detail fields on an event. Owner (or admin) only.
+export const updateEventDetails = mutation({
+  args: {
+    eventId: v.id("events"),
+    tagline: v.optional(v.string()),
+    endTime: v.optional(v.string()),
+    doorsTime: v.optional(v.string()),
+    city: v.optional(v.string()),
+    locationType: v.optional(v.string()),
+    onlineUrl: v.optional(v.string()),
+    maxPerOrder: v.optional(v.number()),
+    visibility: v.optional(v.string()),
+    refundPolicy: v.optional(v.string()),
+    ageRestriction: v.optional(v.string()),
+    goodToKnow: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const user = await getAuthenticatedUser(ctx);
+    const event = await ctx.db.get(args.eventId);
+    if (!event) throw new ConvexError("Event not found");
+    if (event.creatorId !== user._id && !user.roles.includes("admin")) {
+      throw new ConvexError("You can only edit your own event");
+    }
+    const { eventId, ...rest } = args;
+    await ctx.db.patch(eventId, { ...rest, updatedAt: Date.now() });
+  },
+});
+
+// Resolve an event's combined lineup display names (legacy artist accounts +
+// generic participant roster).
+async function resolveLineupNames(
+  ctx: QueryCtx,
+  event: { lineupArtistIds?: GenericId<"users">[]; participantIds?: GenericId<"participants">[] }
+): Promise<string[]> {
+  const artistNames = await Promise.all(
+    (event.lineupArtistIds ?? []).map(async (id) => {
+      const a = await ctx.db.get(id);
+      const p = await ctx.db
+        .query("creatorProfiles")
+        .withIndex("by_user_id", (q) => q.eq("userId", id))
+        .unique();
+      return p?.displayName ?? a?.name ?? null;
+    })
+  );
+  const participantNames = await Promise.all(
+    (event.participantIds ?? []).map(async (id) => {
+      const p = await ctx.db.get(id);
+      return p?.name ?? null;
+    })
+  );
+  return [...artistNames, ...participantNames].filter((n): n is string => !!n);
+}
+
+// Update an event's generic participant lineup. Owner (or admin) only.
+export const updateEventParticipants = mutation({
+  args: { eventId: v.id("events"), participantIds: v.array(v.id("participants")) },
+  handler: async (ctx, args) => {
+    const user = await getAuthenticatedUser(ctx);
+    const event = await ctx.db.get(args.eventId);
+    if (!event) throw new ConvexError("Event not found");
+    if (event.creatorId !== user._id && !user.roles.includes("admin")) {
+      throw new ConvexError("You can only edit your own event's lineup");
+    }
+    if (args.participantIds.length > 50) {
+      throw new ConvexError("A lineup can have at most 50 entries");
+    }
+    await ctx.db.patch(args.eventId, {
+      participantIds: args.participantIds,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+// Update an event's artist lineup. Owner (or admin) only.
+export const updateEventLineup = mutation({
+  args: { eventId: v.id("events"), lineupArtistIds: v.array(v.id("users")) },
+  handler: async (ctx, args) => {
+    const user = await getAuthenticatedUser(ctx);
+    const event = await ctx.db.get(args.eventId);
+    if (!event) throw new ConvexError("Event not found");
+    if (event.creatorId !== user._id && !user.roles.includes("admin")) {
+      throw new ConvexError("You can only edit your own event's lineup");
+    }
+    if (args.lineupArtistIds.length > 20) {
+      throw new ConvexError("A lineup can have at most 20 artists");
+    }
+    await ctx.db.patch(args.eventId, {
+      lineupArtistIds: args.lineupArtistIds,
+      updatedAt: Date.now(),
+    });
   },
 });
 
@@ -502,8 +764,13 @@ export const getMyEventsRevenue = query({
 export const getPublicEventById = query({
   args: { eventId: v.id("events") },
   handler: async (ctx, args) => {
+    // Public surface = published + on_sale + sold_out (matches listPublicEvents /
+    // getPublicEventDetailPage). Previously this only allowed "published", so any
+    // on_sale event — i.e. exactly the ones being bought — threw "Event not found"
+    // in the mobile buy/checkout screens and in web Stripe checkout.
+    const publicStatuses = ["published", "on_sale", "sold_out"];
     const event = await ctx.db.get(args.eventId);
-    if (!event || event.status !== "published") {
+    if (!event || !publicStatuses.includes(event.status)) {
       throw new ConvexError("Event not found");
     }
     const artworkUrl = event.artworkStorageId
@@ -518,6 +785,9 @@ export const getPublicEventById = query({
       ...event,
       artworkUrl,
       creatorStripeAccountId: creator?.stripeAccountId ?? null,
+      // Payments: organizer's default provider + fee, for checkout resolution.
+      creatorPaymentProvider: creator?.paymentProvider ?? null,
+      creatorFeePercent: creator?.feePercent ?? null,
       creatorProfile: creatorProfile
         ? {
             displayName: creatorProfile.displayName,
@@ -622,9 +892,12 @@ export const getPublicEventDetailPage = query({
         .unique(),
       ctx.db.get(event.creatorId),
     ]);
+    // Combined lineup names (artist accounts + participant roster).
+    const lineup = await resolveLineupNames(ctx, event);
     return {
       ...event,
       artworkUrl,
+      lineup,
       creatorStripeAccountId: creator?.stripeAccountId ?? null,
       creatorProfile: creatorProfile
         ? {

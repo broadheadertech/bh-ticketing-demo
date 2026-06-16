@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Badge } from "@/components/ui/badge";
 import { Building2, MapPin, Users } from "lucide-react";
 
 type PublicVenueCardProps = {
@@ -29,49 +28,91 @@ export function PublicVenueCard({
     <Link
       href={`/venues/${venueId}`}
       aria-label={`${name} in ${location} — capacity ${capacity}`}
-      className="group block rounded-lg border bg-card overflow-hidden transition-all duration-200 hover:shadow-lg hover:-translate-y-1 shadow-md"
+      className="pcard"
     >
-      <div className="relative aspect-video w-full overflow-hidden bg-muted">
-        {firstPhotoUrl ? (
-          <Image
-            src={firstPhotoUrl}
-            alt={name}
-            fill
-            className="object-cover"
-            sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center">
-            <Building2 className="h-12 w-12 text-muted-foreground" />
-          </div>
-        )}
-        <div className="absolute top-2 right-2">
-          <Badge variant="secondary" className="text-xs gap-1">
-            <Users className="h-3 w-3" />
+      <div className="frame">
+        <div
+          className="art"
+          style={{
+            aspectRatio: "16 / 10",
+            background: "var(--paper-2)",
+            display: "grid",
+            placeItems: "center",
+          }}
+        >
+          {firstPhotoUrl ? (
+            <Image
+              src={firstPhotoUrl}
+              alt={name}
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            />
+          ) : (
+            <Building2 size={48} style={{ color: "var(--ink-3)" }} />
+          )}
+          <span
+            className="tag"
+            style={{
+              position: "absolute",
+              top: 12,
+              right: 12,
+              background: "var(--ink)",
+              color: "var(--paper)",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+            }}
+          >
+            <Users size={12} />
             {capacity.toLocaleString()}
-          </Badge>
+          </span>
         </div>
       </div>
-
-      <div className="p-4 space-y-2">
-        <h3 className="text-base font-semibold line-clamp-1 leading-snug">
+      <div style={{ marginTop: 13 }}>
+        <h3
+          style={{
+            fontSize: 18,
+            fontFamily: "var(--font-display), system-ui, sans-serif",
+            fontWeight: 800,
+            letterSpacing: "-0.02em",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
           {name}
         </h3>
-        <p className="flex items-center gap-1 text-sm text-muted-foreground truncate">
-          <MapPin className="h-3 w-3 shrink-0" />
-          <span className="truncate">{location}</span>
+        <p
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 5,
+            fontSize: 13.5,
+            fontWeight: 600,
+            color: "var(--ink-3)",
+            marginTop: 4,
+          }}
+        >
+          <MapPin size={13} style={{ flexShrink: 0 }} />
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {location}
+          </span>
         </p>
         {amenities.length > 0 && (
-          <div className="flex flex-wrap gap-1">
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 11 }}>
             {displayedAmenities.map((amenity) => (
-              <Badge key={amenity} variant="outline" className="text-xs">
+              <span key={amenity} className="pill" style={{ fontSize: 11.5, padding: "4px 10px" }}>
                 {amenity}
-              </Badge>
+              </span>
             ))}
             {remainingCount > 0 && (
-              <Badge variant="outline" className="text-xs text-muted-foreground">
+              <span
+                className="pill"
+                style={{ fontSize: 11.5, padding: "4px 10px", borderStyle: "dashed" }}
+              >
                 +{remainingCount} more
-              </Badge>
+              </span>
             )}
           </div>
         )}
@@ -81,14 +122,5 @@ export function PublicVenueCard({
 }
 
 export function PublicVenueCardSkeleton() {
-  return (
-    <div className="rounded-lg border overflow-hidden bg-card">
-      <div className="aspect-video w-full bg-muted animate-pulse" />
-      <div className="p-4 space-y-2">
-        <div className="h-5 w-3/4 bg-muted animate-pulse rounded" />
-        <div className="h-4 w-1/2 bg-muted animate-pulse rounded" />
-        <div className="h-4 w-1/3 bg-muted animate-pulse rounded" />
-      </div>
-    </div>
-  );
+  return <div className="pskel" style={{ aspectRatio: "16 / 12" }} />;
 }

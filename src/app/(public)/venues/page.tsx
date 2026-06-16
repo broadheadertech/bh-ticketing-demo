@@ -25,12 +25,10 @@ export default async function VenuesPage() {
   );
 
   return (
-    <div>
-      <div className="space-y-2 mb-8">
-        <h1 className="text-3xl font-bold">Discover Venues</h1>
-        <p className="text-muted-foreground">
-          Browse venue spaces across the Philippines.
-        </p>
+    <div className="wrap" style={{ paddingBottom: 40 }}>
+      <div className="bro-head" style={{ marginBottom: 28 }}>
+        <div className="eyebrow">Spaces</div>
+        <h1>Browse venues</h1>
       </div>
       <Suspense fallback={<VenuesGridSkeleton />}>
         <VenuesGrid preloadedVenues={preloadedVenues} />

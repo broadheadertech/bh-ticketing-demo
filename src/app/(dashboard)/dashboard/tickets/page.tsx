@@ -4,15 +4,16 @@ import { useState } from "react";
 import { useQuery } from "convex/react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { api } from "../../../../convex/_generated/api";
-import { Id } from "../../../../convex/_generated/dataModel";
+import { api } from "../../../../../convex/_generated/api";
+import { Id } from "../../../../../convex/_generated/dataModel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ReviewDialog } from "@/components/custom/review-dialog";
+import { WaiverDialog } from "@/components/custom/waiver-dialog";
 import { formatDate } from "@/lib/utils/format";
-import { Ticket, AlertCircle, Star } from "lucide-react";
+import { Ticket, AlertCircle, Star, GraduationCap, FileSignature, CheckCircle2 } from "lucide-react";
 
 // Dynamic import with ssr:false — qrcode library uses canvas (browser-only)
 const TicketQrDisplay = dynamic(
@@ -44,12 +45,25 @@ function getRefundBadge(eventStatus: string, refundStatus?: string) {
 export default function MyTicketsPage() {
   const tickets = useQuery(api.tickets.getMyTickets);
   const reviewedEventIds = useQuery(api.reviews.getMyReviewedEventIds);
+  const myCertificates = useQuery(api.certificates.getMine);
+  const certByTicket = new Map(
+    (myCertificates ?? []).map((c) => [String(c.ticketId), c])
+  );
+  const myWaivers = useQuery(api.races.getMyWaivers);
+  const waiverByTicket = new Map(
+    (myWaivers ?? []).map((w) => [String(w.ticketId), w])
+  );
   const [reviewTarget, setReviewTarget] = useState<{
     eventId: Id<"events">;
     eventTitle: string;
   } | null>(null);
+  const [waiverTarget, setWaiverTarget] = useState<{
+    ticketId: Id<"tickets">;
+    eventTitle: string;
+    waiverText: string;
+  } | null>(null);
 
-  const now = Date.now();
+  const [now] = useState(() => Date.now());
   const reviewedSet = new Set(reviewedEventIds ?? []);
 
   if (tickets === undefined) {
@@ -116,6 +130,8 @@ export default function MyTicketsPage() {
             ticket.eventStatus !== "cancelled" &&
             !reviewedSet.has(ticket.eventId);
           const alreadyReviewed = reviewedSet.has(ticket.eventId);
+          const certificate = certByTicket.get(String(ticket._id));
+          const waiver = waiverByTicket.get(String(ticket._id));
 
           return (
             <Card key={ticket._id}>
@@ -169,6 +185,39 @@ export default function MyTicketsPage() {
                   </div>
                 )}
 
+                {certificate && (
+                  <Button size="sm" variant="outline" asChild>
+                    <Link href={`/certificate/${certificate._id}`} target="_blank">
+                      <GraduationCap className="h-4 w-4 mr-1" />
+                      Certificate
+                    </Link>
+                  </Button>
+                )}
+
+                {waiver && (
+                  waiver.signed ? (
+                    <Badge className="bg-green-100 text-green-800 border-green-200 w-fit text-xs">
+                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                      Waiver signed
+                    </Badge>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        setWaiverTarget({
+                          ticketId: ticket._id,
+                          eventTitle: ticket.eventTitle,
+                          waiverText: waiver.waiverText,
+                        })
+                      }
+                    >
+                      <FileSignature className="h-4 w-4 mr-1" />
+                      Sign waiver
+                    </Button>
+                  )
+                )}
+
                 {canReview && (
                   <Button
                     size="sm"
@@ -196,6 +245,16 @@ export default function MyTicketsPage() {
           eventTitle={reviewTarget.eventTitle}
           open={!!reviewTarget}
           onOpenChange={(open) => !open && setReviewTarget(null)}
+        />
+      )}
+
+      {waiverTarget && (
+        <WaiverDialog
+          ticketId={waiverTarget.ticketId}
+          eventTitle={waiverTarget.eventTitle}
+          waiverText={waiverTarget.waiverText}
+          open={!!waiverTarget}
+          onOpenChange={(open) => !open && setWaiverTarget(null)}
         />
       )}
     </div>

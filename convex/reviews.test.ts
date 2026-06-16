@@ -52,7 +52,7 @@ describe("review text validation", () => {
   const MAX_LENGTH = 500;
 
   it("accepts empty text (optional)", () => {
-    const text = undefined;
+    const text = undefined as string | undefined;
     expect(text === undefined || text.length <= MAX_LENGTH).toBe(true);
   });
 

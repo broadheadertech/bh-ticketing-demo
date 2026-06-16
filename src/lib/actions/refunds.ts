@@ -1,6 +1,6 @@
 "use server";
 
-import { stripe } from "@/lib/stripe/config";
+import { getProvider } from "@/lib/payments";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../../convex/_generated/api";
 import { sendRefundConfirmation } from "./email";
@@ -34,12 +34,13 @@ export async function processEventRefunds(
     // won't find cancelled events so we avoid it)
     const resolvedTitle = eventTitle ?? "your event";
 
-    // Group by stripeSessionId
+    // Group by payment reference (one charge per checkout session, any provider)
     const sessionGroups = new Map<string, typeof tickets>();
     for (const ticket of tickets) {
-      const group = sessionGroups.get(ticket.stripeSessionId) ?? [];
+      const key = ticket.paymentRef;
+      const group = sessionGroups.get(key) ?? [];
       group.push(ticket);
-      sessionGroups.set(ticket.stripeSessionId, group);
+      sessionGroups.set(key, group);
     }
 
     let refunded = 0;
@@ -73,18 +74,13 @@ export async function processEventRefunds(
       }
 
       try {
-        // Retrieve checkout session to get payment intent
-        const session = await stripe.checkout.sessions.retrieve(sessionId);
-        const paymentIntentId = session.payment_intent as string;
-
-        if (!paymentIntentId) {
-          throw new Error("No payment intent found for session");
-        }
-
-        // Create refund
-        const refund = await stripe.refunds.create({
-          payment_intent: paymentIntentId,
-        });
+        // Full refund of the charge via the provider that took it (sessionId
+        // here is the paymentRef — Stripe session id or PayMongo checkout id).
+        const provider = getProvider(
+          sessionTickets[0].paymentProvider === "paymongo" ? "paymongo" : "stripe",
+        );
+        const result = await provider.refund(sessionId);
+        if (!result.ok) throw new Error("Provider refund failed");
 
         // Mark tickets as refunded
         for (const ticket of sessionTickets) {
@@ -95,7 +91,6 @@ export async function processEventRefunds(
               ticketId: ticket._id,
               refundStatus: "refunded",
               refundedAt: Date.now(),
-              stripeRefundId: refund.id,
             }
           );
 

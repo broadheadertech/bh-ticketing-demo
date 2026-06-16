@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
+import type { Id } from "../../../convex/_generated/dataModel";
 import {
   startOfMonth,
   endOfMonth,
@@ -28,8 +29,7 @@ import { cn } from "@/lib/utils";
 import { showSuccess, showErrorFromCatch } from "@/lib/utils/toast-helpers";
 import { AVAILABILITY_STATUSES, type AvailabilityStatus } from "@/lib/validators/venue-availability";
 
-// Keep TypeScript happy — used as any since Convex ID type isn't importable here
-type VenueId = Parameters<typeof api.venueAvailability.getAvailabilityByVenue>[0]["venueId"];
+type VenueId = Id<"venues">;
 
 const STATUS_STYLES: Record<string, string> = {
   available: "",
@@ -57,7 +57,7 @@ export function AvailabilityCalendar({ venueId }: AvailabilityCalendarProps) {
 
   // Build statusMap: date string → record
   const statusMap = useMemo(() => {
-    const m: Record<string, (typeof records)[0]> = {};
+    const m: Record<string, NonNullable<typeof records>[number]> = {};
     records?.forEach((r) => {
       m[r.date] = r;
     });

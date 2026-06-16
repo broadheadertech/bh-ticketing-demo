@@ -19,12 +19,10 @@ export default async function EventsPage() {
   const preloadedEvents = await preloadQuery(api.events.listPublicEvents, {});
 
   return (
-    <div>
-      <div className="space-y-2 mb-8">
-        <h1 className="text-3xl font-bold">Discover Events</h1>
-        <p className="text-muted-foreground">
-          Browse upcoming live events across the Philippines.
-        </p>
+    <div className="wrap" style={{ paddingBottom: 40 }}>
+      <div className="bro-head">
+        <div className="eyebrow">Discover</div>
+        <h1>Browse events</h1>
       </div>
       <Suspense fallback={<EventsGridSkeleton />}>
         <EventsGrid preloadedEvents={preloadedEvents} />

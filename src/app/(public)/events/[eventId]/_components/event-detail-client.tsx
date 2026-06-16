@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { usePreloadedQuery, useQuery, useMutation } from "convex/react";
 import { useUser } from "@clerk/nextjs";
 import type { Preloaded } from "convex/react";
@@ -15,8 +16,20 @@ import { FreeRegistrationCard } from "@/components/custom/free-registration-card
 import { Input } from "@/components/ui/input";
 import { formatDate, formatCurrency } from "@/lib/utils/format";
 import { showSuccess, showErrorFromCatch } from "@/lib/utils/toast-helpers";
-import { MapPin, Calendar, User, Share2, Check, Star, Bell } from "lucide-react";
+import {
+  MapPin,
+  Calendar,
+  Share2,
+  Check,
+  Star,
+  Bell,
+  Lock,
+  ChevronRight,
+} from "lucide-react";
 import { FollowButton } from "@/components/custom/follow-button";
+import { themeForEvent } from "@/lib/themes";
+import { kitFor } from "@/lib/event-kits";
+import { EVENT_TYPE_LABELS } from "@/lib/utils/constants";
 
 // ---------------------------------------------------------------------------
 // Skeleton export — used by server page as Suspense fallback
@@ -88,6 +101,7 @@ type Tier = {
   quantity: number;
   soldCount: number;
   description?: string;
+  dayId?: string;
   sortOrder: number;
 };
 
@@ -235,9 +249,11 @@ function SoldOutWithWaitlist({
 function TicketPanel({
   event,
   tiers,
+  dayLabels,
 }: {
   event: { _id: string; creatorStripeAccountId: string | null };
   tiers: Tier[];
+  dayLabels?: Record<string, string>;
 }) {
   if (tiers.length === 0) {
     return (
@@ -263,7 +279,7 @@ function TicketPanel({
   }
 
   if (hasPaidTiers && event.creatorStripeAccountId) {
-    return <TicketPurchaseCard eventId={eventId} tiers={tiers} />;
+    return <TicketPurchaseCard eventId={eventId} tiers={tiers} dayLabels={dayLabels} />;
   }
 
   // Paid tiers but no Stripe account connected
@@ -400,6 +416,10 @@ type Props = {
 export function EventDetailClient({ preloadedEvent, preloadedTiers }: Props) {
   const event = usePreloadedQuery(preloadedEvent);
   const tiers = usePreloadedQuery(preloadedTiers);
+  const addOns = useQuery(
+    api.addOns.getPublicAddOnsByEventId,
+    event ? { eventId: event._id as Id<"events"> } : "skip"
+  );
 
   if (!event) {
     // Should not normally reach here (server page calls notFound()),
@@ -415,99 +435,252 @@ export function EventDetailClient({ preloadedEvent, preloadedTiers }: Props) {
     (a, b) => a.sortOrder - b.sortOrder
   );
 
+  const theme = themeForEvent(event);
+  const typeLabel = EVENT_TYPE_LABELS[event.eventType] ?? event.eventType;
+  const kit = kitFor(event.eventType);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const lineup = ((event as any).lineup as string[] | undefined) ?? [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const eventDays = (event as any).days as
+    | { id: string; label: string; date: number; startTime?: string; endTime?: string }[]
+    | undefined;
+  const dayLabels = eventDays
+    ? Object.fromEntries(eventDays.map((d) => [d.id, d.label]))
+    : undefined;
+  const questions =
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ((event as any).registrationQuestions as
+      | { id: string; label: string; type: string; required: boolean }[]
+      | undefined) ?? [];
+
   return (
-    <div className="max-w-4xl mx-auto py-8 px-4">
-      {/* Artwork */}
-      {event.artworkUrl && (
-        <div className="relative aspect-video w-full rounded-lg overflow-hidden mb-8 bg-muted">
+    <div className="wrap" style={{ paddingBottom: 40 }}>
+      {/* Breadcrumbs */}
+      <div className="crumbs">
+        <Link href="/">Home</Link>
+        <ChevronRight size={13} />
+        <Link href="/events">Events</Link>
+        <ChevronRight size={13} />
+        <span>{event.title}</span>
+      </div>
+
+      {/* Themed hero in Plaza chrome */}
+      <div className="evp-hero">
+        {event.artworkUrl ? (
           <Image
             src={event.artworkUrl}
             alt={event.title}
             fill
-            className="object-cover"
-            sizes="(max-width: 1024px) 100vw, 896px"
+            className="bg object-cover"
+            sizes="(max-width: 1240px) 100vw, 1240px"
             priority
           />
+        ) : (
+          <div className="bg" style={{ background: theme.grad }} />
+        )}
+        <div className="tex" />
+        <div className="scrim" />
+        <div className="toprow">
+          <span className="evp-themetag">
+            <span className="d" style={{ background: theme.accent }} />
+            {theme.name} theme
+          </span>
+          <ShareButton />
+        </div>
+        <div className="inner">
+          <span
+            className="tag"
+            style={{
+              background: "var(--mango)",
+              color: "var(--ink)",
+              alignSelf: "flex-start",
+            }}
+          >
+            {typeLabel}
+          </span>
+          <h1 style={{ marginTop: 12 }}>{event.title}</h1>
+          {event.tagline && (
+            <div style={{ marginTop: 8, fontSize: 16, fontWeight: 600, opacity: 0.95 }}>
+              {event.tagline}
+            </div>
+          )}
+          <div className="meta">
+            <span className="pill">
+              <Calendar size={15} /> {formatDate(event.date)} ·{" "}
+              {event.doorsTime ? `Doors ${event.doorsTime} · ` : ""}
+              {event.time}
+              {event.endTime ? `–${event.endTime}` : ""}
+            </span>
+            {(event.venueName || event.city) && (
+              <span className="pill">
+                <MapPin size={15} />{" "}
+                {[event.venueName, event.city].filter(Boolean).join(", ")}
+              </span>
+            )}
+            {event.locationType && event.locationType !== "venue" && (
+              <span className="pill" style={{ textTransform: "capitalize" }}>
+                {event.locationType}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Host line */}
+      {event.creatorProfile && (
+        <div className="evp-host">
+          Hosted by
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}>
+            {event.creatorProfile.profilePhotoUrl ? (
+              <span className="relative h-5.5 w-5.5 rounded-md overflow-hidden inline-block shrink-0">
+                <Image
+                  src={event.creatorProfile.profilePhotoUrl}
+                  alt={event.creatorProfile.displayName}
+                  fill
+                  className="object-cover"
+                  sizes="22px"
+                />
+              </span>
+            ) : (
+              <span
+                style={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: 6,
+                  background: "var(--ink)",
+                  color: "var(--paper)",
+                  display: "grid",
+                  placeItems: "center",
+                  fontFamily: "var(--font-display), sans-serif",
+                  fontWeight: 800,
+                  fontSize: 11,
+                }}
+              >
+                {event.creatorProfile.displayName[0]}
+              </span>
+            )}
+            <b>{event.creatorProfile.displayName}</b>
+          </span>
+          <CreatorRating creatorId={event.creatorId} />
+          <FollowButton entityType="creator" entityId={event.creatorId} />
         </div>
       )}
 
-      {/* Body grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Event info column */}
-        <div className="lg:col-span-2 space-y-5">
-          <h1 className="text-3xl font-bold leading-tight">{event.title}</h1>
-
-          {/* Date & time */}
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Calendar className="h-4 w-4 shrink-0" />
-            <span>
-              {formatDate(event.date)} · {event.time}
-            </span>
+      {/* Body */}
+      <div className="evp-layout">
+        <div className="evp-main">
+          <div className="evp-sec">
+            <h2>About this event</h2>
+            <p className="evp-about">{event.description}</p>
           </div>
 
-          {/* Venue */}
-          {event.venueName && (
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <MapPin className="h-4 w-4 shrink-0" />
-              <span>{event.venueName}</span>
+          {lineup.length > 0 && (
+            <div className="evp-sec">
+              <h2>{kit.participantsLabel}</h2>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 14 }}>
+                {lineup.map((n) => (
+                  <span key={n} className="pill">{n}</span>
+                ))}
+              </div>
             </div>
           )}
 
-          {/* Creator profile */}
-          {event.creatorProfile && (
-            <div className="flex items-center gap-3">
-              {event.creatorProfile.profilePhotoUrl ? (
-                <div className="relative h-8 w-8 rounded-full overflow-hidden bg-muted shrink-0">
-                  <Image
-                    src={event.creatorProfile.profilePhotoUrl}
-                    alt={event.creatorProfile.displayName}
-                    fill
-                    className="object-cover"
-                    sizes="32px"
-                  />
-                </div>
-              ) : (
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-muted-foreground shrink-0">
-                  <User className="h-4 w-4" />
-                </div>
-              )}
-              <span className="text-sm text-muted-foreground">
-                By{" "}
-                <span className="font-medium text-foreground">
-                  {event.creatorProfile.displayName}
-                </span>
-              </span>
-              <CreatorRating creatorId={event.creatorId} />
-              <FollowButton entityType="creator" entityId={event.creatorId} />
+          {eventDays && eventDays.length > 1 && (
+            <div className="evp-sec">
+              <h2>{kit.scheduleLabel}</h2>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 14 }}>
+                {eventDays.map((d) => (
+                  <div key={d.id} className="rev-card" style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                    <div style={{ fontWeight: 800, fontFamily: "var(--font-display), system-ui", minWidth: 70 }}>{d.label}</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600 }}>{formatDate(d.date)}</div>
+                      {(d.startTime || d.endTime) && (
+                        <div className="muted" style={{ fontSize: 13 }}>
+                          {d.startTime}{d.endTime ? `–${d.endTime}` : ""}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
-          {/* Description */}
-          <p className="whitespace-pre-wrap text-foreground leading-relaxed">
-            {event.description}
-          </p>
+          {(event.goodToKnow || event.refundPolicy || event.ageRestriction) && (
+            <div className="evp-sec">
+              <h2>Good to know</h2>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 14 }}>
+                {event.ageRestriction && (
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 13.5 }}>Age restriction</div>
+                    <p className="evp-about" style={{ marginTop: 2 }}>{event.ageRestriction}</p>
+                  </div>
+                )}
+                {event.refundPolicy && (
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 13.5 }}>Refund policy</div>
+                    <p className="evp-about" style={{ marginTop: 2 }}>{event.refundPolicy}</p>
+                  </div>
+                )}
+                {event.goodToKnow && (
+                  <p className="evp-about" style={{ marginTop: 0 }}>{event.goodToKnow}</p>
+                )}
+              </div>
+            </div>
+          )}
 
-          {/* Share */}
-          <div className="pt-2">
-            <ShareButton />
-          </div>
+          {questions.length > 0 && (
+            <div className="evp-sec">
+              <h2>Registration</h2>
+              <p className="evp-about" style={{ marginBottom: 8 }}>
+                You&apos;ll be asked the following when you register:
+              </p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {questions.map((q) => (
+                  <span key={q.id} className="pill">
+                    {q.label}{q.required ? " *" : ""}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
 
-          {/* Reviews section */}
-          <div className="pt-4 border-t">
+          <div className="evp-sec">
             <ReviewsSection eventId={event._id as Id<"events">} />
           </div>
         </div>
 
         {/* Ticket panel column */}
-        <div>
+        <aside className="evp-aside">
           <TicketPanel
             event={{
               _id: event._id,
               creatorStripeAccountId: event.creatorStripeAccountId,
             }}
             tiers={sortedTiers}
+            dayLabels={dayLabels}
           />
-        </div>
+          {addOns && addOns.length > 0 && (
+            <div className="buybox" style={{ marginTop: 16 }}>
+              <div className="head"><h3>Optional add-ons</h3></div>
+              <div className="body" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {addOns.map((a) => (
+                  <div key={a._id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: 14 }}>{a.name}</div>
+                      {a.description && <div className="muted" style={{ fontSize: 12 }}>{a.description}</div>}
+                    </div>
+                    <span className="mono" style={{ fontWeight: 700 }}>{formatCurrency(a.price)}</span>
+                  </div>
+                ))}
+                <div className="muted" style={{ fontSize: 11.5 }}>Add these at checkout.</div>
+              </div>
+            </div>
+          )}
+          <div className="secure">
+            <Lock size={14} /> Secure checkout · signed QR e-ticket
+          </div>
+        </aside>
       </div>
     </div>
   );

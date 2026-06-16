@@ -16,6 +16,8 @@ import {
   EVENT_TYPE_LABELS,
   EVENT_TYPE_DESCRIPTIONS,
 } from "@/lib/utils/constants";
+import { EVENT_THEMES, THEME_ORDER, themeForEvent } from "@/lib/themes";
+import { ParticipantPicker } from "@/components/custom/participant-picker";
 import {
   Form,
   FormControl,
@@ -138,6 +140,7 @@ function StepEventType({
 }
 
 function StepDetails({
+  eventType,
   onSubmit,
   onBack,
   initialData,
@@ -145,6 +148,7 @@ function StepDetails({
   onVenueSelect,
   onVenueClear,
 }: {
+  eventType: EventType;
   onSubmit: (data: EventDetailsFormData) => void;
   onBack: () => void;
   initialData?: EventDetailsFormData | null;
@@ -164,9 +168,26 @@ function StepDetails({
       date: initialData?.date ?? "",
       time: initialData?.time ?? "",
       venueName: initialData?.venueName ?? "",
+      theme: initialData?.theme,
+      lineupArtistIds: initialData?.lineupArtistIds ?? [],
+      tagline: initialData?.tagline ?? "",
+      endTime: initialData?.endTime ?? "",
+      doorsTime: initialData?.doorsTime ?? "",
+      city: initialData?.city ?? "",
+      locationType: initialData?.locationType ?? "venue",
+      onlineUrl: initialData?.onlineUrl ?? "",
+      onSaleStart: initialData?.onSaleStart ?? "",
+      onSaleEnd: initialData?.onSaleEnd ?? "",
+      maxPerOrder: initialData?.maxPerOrder ?? "",
+      visibility: initialData?.visibility ?? "public",
+      refundPolicy: initialData?.refundPolicy ?? "",
+      ageRestriction: initialData?.ageRestriction ?? "",
+      goodToKnow: initialData?.goodToKnow ?? "",
     },
     mode: "onBlur",
   });
+
+  const locationType = form.watch("locationType");
 
   const descriptionValue = form.watch("description") ?? "";
 
@@ -216,6 +237,20 @@ function StepDetails({
 
           <FormField
             control={form.control}
+            name="tagline"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Tagline (optional)</FormLabel>
+                <FormControl>
+                  <Input placeholder="One line shown on cards & hero" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
             name="description"
             render={({ field }) => (
               <FormItem>
@@ -257,7 +292,7 @@ function StepDetails({
               name="time"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Time</FormLabel>
+                  <FormLabel>Start time</FormLabel>
                   <FormControl>
                     <Input type="time" {...field} />
                   </FormControl>
@@ -266,6 +301,73 @@ function StepDetails({
               )}
             />
           </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="doorsTime"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Doors open (optional)</FormLabel>
+                  <FormControl>
+                    <Input type="time" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="endTime"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>End time (optional)</FormLabel>
+                  <FormControl>
+                    <Input type="time" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          {/* Location type */}
+          <FormField
+            control={form.control}
+            name="locationType"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Location type</FormLabel>
+                <FormControl>
+                  <select
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
+                    {...field}
+                  >
+                    <option value="venue">In-person venue</option>
+                    <option value="online">Online</option>
+                    <option value="hybrid">Hybrid</option>
+                  </select>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {(locationType === "online" || locationType === "hybrid") && (
+            <FormField
+              control={form.control}
+              name="onlineUrl"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Online / stream URL</FormLabel>
+                  <FormControl>
+                    <Input placeholder="https://…" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
 
           {/* Venue selection */}
           <div className="space-y-3">
@@ -315,6 +417,198 @@ function StepDetails({
               />
             )}
           </div>
+
+          <FormField
+            control={form.control}
+            name="city"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>City / region (optional)</FormLabel>
+                <FormControl>
+                  <Input placeholder="e.g. Pasay City" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Ticketing settings */}
+          <div className="space-y-4 rounded-lg border p-4">
+            <p className="text-sm font-medium">Ticketing settings</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="maxPerOrder"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Max tickets / order (optional)</FormLabel>
+                    <FormControl>
+                      <Input type="number" min={1} placeholder="e.g. 8" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="visibility"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Visibility</FormLabel>
+                    <FormControl>
+                      <select
+                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
+                        {...field}
+                      >
+                        <option value="public">Public — listed in Browse</option>
+                        <option value="unlisted">Unlisted — link only</option>
+                      </select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="onSaleStart"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Sales open (optional)</FormLabel>
+                    <FormControl>
+                      <Input type="datetime-local" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="onSaleEnd"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Sales close (optional)</FormLabel>
+                    <FormControl>
+                      <Input type="datetime-local" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </div>
+
+          {/* Policies / good to know */}
+          <div className="space-y-4 rounded-lg border p-4">
+            <p className="text-sm font-medium">Policies &amp; good to know</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="ageRestriction"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Age restriction (optional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. 18+, All ages" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="refundPolicy"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Refund policy (optional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. No refunds; transfers allowed" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <FormField
+              control={form.control}
+              name="goodToKnow"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Good to know (optional)</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder="Doors, re-entry, what to bring, parking…" className="min-h-20" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          {/* Event theme — the visual world the public event page wears */}
+          <FormField
+            control={form.control}
+            name="theme"
+            render={({ field }) => {
+              const defaultTheme = themeForEvent({ eventType });
+              const selected = field.value ?? defaultTheme.id;
+              return (
+                <FormItem>
+                  <FormLabel>Event theme</FormLabel>
+                  <FormControl>
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        {THEME_ORDER.map((id) => {
+                          const t = EVENT_THEMES[id];
+                          const isOn = selected === id;
+                          return (
+                            <button
+                              key={id}
+                              type="button"
+                              title={t.name}
+                              aria-label={t.name}
+                              aria-pressed={isOn}
+                              onClick={() => field.onChange(id)}
+                              className={`h-9 flex-1 rounded-md border transition-shadow ${
+                                isOn
+                                  ? "ring-2 ring-primary ring-offset-2"
+                                  : "opacity-80 hover:opacity-100"
+                              }`}
+                              style={{ background: t.grad }}
+                            />
+                          );
+                        })}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {EVENT_THEMES[selected as keyof typeof EVENT_THEMES].name}{" "}
+                        — {EVENT_THEMES[selected as keyof typeof EVENT_THEMES].tagline}
+                        {!field.value && " (default for this event type)"}
+                      </p>
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              );
+            }}
+          />
+
+          {/* Lineup — artists performing at this event */}
+          <FormField
+            control={form.control}
+            name="lineupArtistIds"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Lineup (optional)</FormLabel>
+                <FormControl>
+                  <ParticipantPicker
+                    value={field.value ?? []}
+                    onChange={field.onChange}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
           <Button type="submit">Continue to Review</Button>
         </form>
@@ -383,6 +677,29 @@ function StepReview({
               <p className="font-medium">{details.venueName}</p>
             </div>
           )}
+          <div>
+            <p className="text-sm text-muted-foreground">Theme</p>
+            <p className="font-medium flex items-center gap-2">
+              <span
+                className="inline-block h-4 w-7 rounded border"
+                style={{
+                  background: themeForEvent({
+                    theme: details.theme,
+                    eventType,
+                  }).grad,
+                }}
+              />
+              {themeForEvent({ theme: details.theme, eventType }).name}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Lineup</p>
+            <p className="font-medium">
+              {details.lineupArtistIds && details.lineupArtistIds.length > 0
+                ? `${details.lineupArtistIds.length} artist${details.lineupArtistIds.length === 1 ? "" : "s"}`
+                : "None"}
+            </p>
+          </div>
         </CardContent>
       </Card>
       <div className="mt-6">
@@ -422,14 +739,35 @@ export function CreateEventWizard() {
     try {
       // Parse as local midnight to avoid UTC timezone shift
       const dateMs = new Date(details.date + "T00:00:00").getTime();
+      const toMs = (s?: string) => {
+        if (!s) return undefined;
+        const t = new Date(s).getTime();
+        return isNaN(t) ? undefined : t;
+      };
       await createEvent({
         eventType,
+        theme: details.theme,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        participantIds: (details.lineupArtistIds ?? []) as any,
         title: details.title,
+        tagline: details.tagline || undefined,
         description: details.description,
         date: dateMs,
         time: details.time,
+        endTime: details.endTime || undefined,
+        doorsTime: details.doorsTime || undefined,
         venueName: details.venueName || undefined,
         venueId: selectedVenueId || undefined,
+        city: details.city || undefined,
+        locationType: details.locationType || undefined,
+        onlineUrl: details.onlineUrl || undefined,
+        onSaleStart: toMs(details.onSaleStart),
+        onSaleEnd: toMs(details.onSaleEnd),
+        maxPerOrder: details.maxPerOrder ? Number(details.maxPerOrder) : undefined,
+        visibility: details.visibility || undefined,
+        refundPolicy: details.refundPolicy || undefined,
+        ageRestriction: details.ageRestriction || undefined,
+        goodToKnow: details.goodToKnow || undefined,
       });
       showSuccess("Event created as draft");
       router.push("/dashboard/events");
@@ -444,8 +782,9 @@ export function CreateEventWizard() {
     <div>
       <StepIndicator currentStep={currentStep} />
       {currentStep === 1 && <StepEventType onSelect={handleSelectType} />}
-      {currentStep === 2 && (
+      {currentStep === 2 && eventType && (
         <StepDetails
+          eventType={eventType}
           onSubmit={handleDetailsSubmit}
           onBack={() => setCurrentStep(1)}
           initialData={details}

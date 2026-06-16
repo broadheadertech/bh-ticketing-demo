@@ -83,6 +83,8 @@ export async function processCheckoutCompleted(
     eventId,
     tierSelections,
     buyerEmail,
+    provider: "stripe",
+    paymentRef: session.id,
   });
 
   // Increment promo code usage if one was applied

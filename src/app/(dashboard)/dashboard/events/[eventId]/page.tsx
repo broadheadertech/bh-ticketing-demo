@@ -15,13 +15,57 @@ import { CancelEventDialog } from "@/components/custom/cancel-event-dialog";
 import { DeleteDraftDialog } from "@/components/custom/delete-draft-dialog";
 import { ManageStaffDialog } from "@/components/custom/manage-staff-dialog";
 import { PromoCodeDialog } from "@/components/custom/promo-code-dialog";
+import { ParticipantPicker } from "@/components/custom/participant-picker";
 import { formatDate } from "@/lib/utils/format";
 import { EVENT_TYPE_LABELS, EVENT_STATUS_LABELS } from "@/lib/utils/constants";
 import { getStatusBadgeVariant } from "@/lib/utils/event-status";
 import { canPublishEvent } from "@/lib/validators/event-publish";
 import { showSuccess, showErrorFromCatch } from "@/lib/utils/toast-helpers";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, BarChart3, ImagePlus, Settings, ImageOff, Copy, Users, Tag, LineChart } from "lucide-react";
+import { ArrowLeft, BarChart3, ImagePlus, Settings, ImageOff, Copy, Users, Tag, LineChart, GraduationCap, Flag } from "lucide-react";
+
+function EventLineupCard({
+  eventId,
+  initial,
+}: {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  eventId: any;
+  initial: string[];
+}) {
+  const update = useMutation(api.events.updateEventParticipants);
+  const [value, setValue] = useState<string[]>(initial);
+  const [saving, setSaving] = useState(false);
+
+  async function save() {
+    setSaving(true);
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await update({ eventId, participantIds: value as any });
+      showSuccess("Lineup saved");
+    } catch (error) {
+      showErrorFromCatch(error);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Card>
+      <CardContent className="pt-6 space-y-3">
+        <div>
+          <span className="font-medium text-sm">Lineup</span>
+          <p className="text-xs text-muted-foreground mt-1">
+            Speakers / artists / racers shown on the event page and calendar — from your roster.
+          </p>
+        </div>
+        <ParticipantPicker value={value} onChange={setValue} />
+        <Button size="sm" onClick={save} disabled={saving}>
+          {saving ? "Saving..." : "Save lineup"}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function EventDetailPage() {
   const params = useParams();
@@ -178,6 +222,13 @@ export default function EventDetailPage() {
           </CardContent>
         </Card>
 
+        <EventLineupCard
+          key={String(eventId)}
+          eventId={eventId}
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          initial={((event.participantIds as any[]) ?? []).map(String)}
+        />
+
         <div className="flex gap-2 flex-wrap">
           {isDraft && (
             <>
@@ -219,6 +270,14 @@ export default function EventDetailPage() {
                   Analytics
                 </Link>
               </Button>
+              {(event.eventType === "seminar" || event.eventType === "class") && (
+                <Button variant="outline" asChild>
+                  <Link href={`/dashboard/events/${eventId}/certificates`}>
+                    <GraduationCap className="mr-2 h-4 w-4" />
+                    Certificates
+                  </Link>
+                </Button>
+              )}
             </>
           )}
 
@@ -228,6 +287,15 @@ export default function EventDetailPage() {
               onClick={() => setCancelDialogOpen(true)}
             >
               Cancel Event
+            </Button>
+          )}
+
+          {event.eventType === "racing" && (
+            <Button variant="outline" asChild>
+              <Link href={`/dashboard/events/${eventId}/race`}>
+                <Flag className="mr-2 h-4 w-4" />
+                Race Setup
+              </Link>
             </Button>
           )}
 

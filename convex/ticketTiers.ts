@@ -16,6 +16,7 @@ export const saveTiers = mutation({
         price: v.number(),
         quantity: v.number(),
         description: v.optional(v.string()),
+        dayId: v.optional(v.string()),
         sortOrder: v.number(),
       })
     ),
@@ -78,6 +79,7 @@ export const saveTiers = mutation({
         quantity: tier.quantity,
         soldCount: 0,
         description: tier.description,
+        dayId: tier.dayId,
         sortOrder: tier.sortOrder,
         createdAt: now,
         updatedAt: now,

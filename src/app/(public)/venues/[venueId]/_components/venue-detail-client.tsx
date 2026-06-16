@@ -7,7 +7,6 @@ import { usePreloadedQuery } from "convex/react";
 import type { Preloaded } from "convex/react";
 import { api } from "../../../../../../convex/_generated/api";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { VenueAvailabilityReadonly } from "@/components/custom/venue-availability-readonly";
 import {
@@ -166,9 +165,9 @@ export function VenueDetailClient({ preloadedVenue }: Props) {
               </h2>
               <div className="flex flex-wrap gap-2">
                 {venue.amenities.map((amenity) => (
-                  <Badge key={amenity} variant="secondary">
+                  <span key={amenity} className="pill">
                     {amenity}
-                  </Badge>
+                  </span>
                 ))}
               </div>
             </div>

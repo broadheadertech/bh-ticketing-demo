@@ -1,6 +1,7 @@
 import { query, mutation, internalMutation } from "./_generated/server";
 import { ConvexError, v } from "convex/values";
 import { getAuthenticatedUser } from "./lib/auth";
+import { internal } from "./_generated/api";
 
 // ---------------------------------------------------------------------------
 // Queries
@@ -108,6 +109,16 @@ export const createNotification = internalMutation({
       entityId: args.entityId,
       read: false,
       createdAt: Date.now(),
+    });
+
+    // Also deliver a device push (best-effort; no-op if the user has no tokens).
+    await ctx.scheduler.runAfter(0, internal.push.sendToUser, {
+      userId: args.userId,
+      title: args.title,
+      body: args.message,
+      entityType: args.entityType,
+      entityId: args.entityId,
+      type: args.type,
     });
   },
 });

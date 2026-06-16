@@ -156,9 +156,12 @@ export const canScanEvent = query({
     const event = await ctx.db.get(args.eventId);
     if (!event) return { authorized: false as const };
 
+    // Multi-day events expose their day list so the scanner can pick which day to check in.
+    const days = event.days ?? [];
+
     // Creator always has access
     if (event.creatorId === user._id) {
-      return { authorized: true as const, eventTitle: event.title };
+      return { authorized: true as const, eventTitle: event.title, days };
     }
 
     // Check staff assignment
@@ -169,7 +172,7 @@ export const canScanEvent = query({
     const isAssigned = assignments.some((a) => a.userId === user._id);
 
     if (isAssigned) {
-      return { authorized: true as const, eventTitle: event.title };
+      return { authorized: true as const, eventTitle: event.title, days };
     }
 
     return { authorized: false as const };

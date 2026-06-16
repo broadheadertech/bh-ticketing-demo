@@ -247,8 +247,8 @@ describe("disableUser contract", () => {
   });
 
   it("allows admin to disable a different user", () => {
-    const adminId = "users:admin1";
-    const targetUserId = "users:other";
+    const adminId: string = "users:admin1";
+    const targetUserId: string = "users:other";
     expect(adminId === targetUserId).toBe(false); // should proceed
   });
 

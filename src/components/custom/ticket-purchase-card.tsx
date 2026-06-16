@@ -22,14 +22,17 @@ type Tier = {
   quantity: number;
   soldCount: number;
   description?: string;
+  dayId?: string;
 };
 
 export function TicketPurchaseCard({
   eventId,
   tiers,
+  dayLabels,
 }: {
   eventId: string;
   tiers: Tier[];
+  dayLabels?: Record<string, string>;
 }) {
   const { user, isSignedIn } = useUser();
   const router = useRouter();
@@ -116,7 +119,14 @@ export function TicketPurchaseCard({
           return (
             <div key={tier._id} className="flex items-center justify-between">
               <div>
-                <p className="font-medium">{tier.name}</p>
+                <p className="font-medium flex items-center gap-2">
+                  {tier.name}
+                  {dayLabels && (
+                    <Badge variant="secondary" className="text-xs">
+                      {tier.dayId ? dayLabels[tier.dayId] ?? "Day" : "All days"}
+                    </Badge>
+                  )}
+                </p>
                 <p className="text-sm text-muted-foreground">
                   {formatCurrency(tier.price)} · {available} remaining
                 </p>

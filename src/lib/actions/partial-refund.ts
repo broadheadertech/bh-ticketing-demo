@@ -1,6 +1,6 @@
 "use server";
 
-import { stripe } from "@/lib/stripe/config";
+import { getProvider } from "@/lib/payments";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../../convex/_generated/api";
 import { sendRefundConfirmation } from "./email";
@@ -50,21 +50,20 @@ export async function refundSingleTicket(
       return { success: true };
     }
 
-    // Get the Stripe session to find payment intent
-    const session = await stripe.checkout.sessions.retrieve(
-      ticket.stripeSessionId
+    // Partial refund of this ticket's amount via the provider that took it.
+    const t = ticket as {
+      paymentProvider?: string;
+      paymentRef?: string;
+      stripeSessionId: string;
+    };
+    const provider = getProvider(
+      t.paymentProvider === "paymongo" ? "paymongo" : "stripe",
     );
-    const paymentIntentId = session.payment_intent as string;
-
-    if (!paymentIntentId) {
-      return { success: false, error: "No payment intent found for this ticket" };
+    const ref = t.paymentRef ?? t.stripeSessionId;
+    const result = await provider.refund(ref, tierPrice);
+    if (!result.ok) {
+      return { success: false, error: "Refund could not be processed" };
     }
-
-    // Create partial refund for this ticket's amount
-    const refund = await stripe.refunds.create({
-      payment_intent: paymentIntentId,
-      amount: tierPrice,
-    });
 
     // Update ticket status
     await convex.mutation(api.tickets.updateTicketRefundStatus, {
@@ -72,7 +71,6 @@ export async function refundSingleTicket(
       ticketId: ticketId as never,
       refundStatus: "refunded",
       refundedAt: Date.now(),
-      stripeRefundId: refund.id,
     });
 
     // Send refund email (fire-and-forget)

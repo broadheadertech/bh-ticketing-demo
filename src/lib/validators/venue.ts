@@ -12,7 +12,7 @@ export const createVenueSchema = z.object({
     .min(1, "Location is required")
     .max(200, "Location must be 200 characters or less"),
   capacity: z.coerce
-    .number({ invalid_type_error: "Capacity must be a number" })
+    .number({ error: "Capacity must be a number" })
     .int("Capacity must be a whole number")
     .min(1, "Capacity must be at least 1")
     .max(100000, "Capacity must be 100,000 or less"),
@@ -27,3 +27,5 @@ export const createVenueSchema = z.object({
 });
 
 export type CreateVenueFormData = z.infer<typeof createVenueSchema>;
+// Input type differs from output because `capacity` is coerced (z.coerce.number).
+export type CreateVenueFormInput = z.input<typeof createVenueSchema>;

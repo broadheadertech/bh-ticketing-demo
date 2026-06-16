@@ -2,8 +2,6 @@
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Search, X } from "lucide-react";
 import { EVENT_TYPE_FILTERS } from "@/lib/utils/constants";
 
@@ -99,85 +97,88 @@ export function EventFilterBar({
   };
 
   return (
-    <div className="space-y-3 mb-6">
-      {/* Search bar */}
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-          <Input
-            placeholder="Search events..."
+    <div>
+      {/* Search / location / date bar */}
+      <div className="bro-bar">
+        <div className="bro-search">
+          <Search size={18} style={{ color: "var(--ink-3)", flexShrink: 0 }} />
+          <input
+            placeholder="Search events…"
             value={localQuery}
             onChange={(e) => setLocalQuery(e.target.value)}
-            className="pl-9 pr-9"
             maxLength={100}
             aria-label="Search events"
           />
           {localQuery && (
             <button
               onClick={() => setLocalQuery("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               aria-label="Clear search"
+              style={{
+                border: "none",
+                background: "transparent",
+                cursor: "pointer",
+                color: "var(--ink-3)",
+                display: "grid",
+                placeItems: "center",
+              }}
             >
-              <X className="h-4 w-4" />
+              <X size={16} />
             </button>
           )}
         </div>
-        {/* Location filter */}
-        <Input
-          placeholder="Filter by venue..."
-          value={localLocation}
-          onChange={(e) => setLocalLocation(e.target.value)}
-          className="max-w-45"
-          maxLength={100}
-          aria-label="Filter by venue name"
-        />
-      </div>
-
-      {/* Event type pills */}
-      <div className="flex flex-wrap gap-2">
-        {EVENT_TYPE_FILTERS.map((filter) => (
-          <Button
-            key={filter.value}
-            variant={currentType === filter.value || (!currentType && filter.value === "all") ? "default" : "outline"}
-            size="sm"
-            onClick={() => updateFilter("type", filter.value)}
-            aria-pressed={
-              currentType === filter.value ||
-              (!currentType && filter.value === "all")
-            }
-          >
-            {filter.label}
-          </Button>
-        ))}
-      </div>
-
-      {/* Date range pills */}
-      <div className="flex flex-wrap gap-2">
-        {DATE_RANGE_FILTERS.map((filter) => (
-          <Button
-            key={filter.value}
-            variant={currentDate === filter.value || (!currentDate && filter.value === "all") ? "default" : "outline"}
-            size="sm"
-            onClick={() => updateFilter("date", filter.value)}
-            aria-pressed={
-              currentDate === filter.value ||
-              (!currentDate && filter.value === "all")
-            }
-          >
-            {filter.label}
-          </Button>
-        ))}
-      </div>
-
-      {/* Active filter indicator + Clear all */}
-      {hasActiveFilters && (
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Filters active</span>
-          <Button variant="ghost" size="sm" onClick={clearAllFilters}>
-            Clear all
-          </Button>
+        <div className="bro-search" style={{ flex: "0 1 220px", minWidth: 170 }}>
+          <input
+            placeholder="Filter by venue…"
+            value={localLocation}
+            onChange={(e) => setLocalLocation(e.target.value)}
+            maxLength={100}
+            aria-label="Filter by venue name"
+          />
         </div>
-      )}
+        <select
+          className="bro-select"
+          value={currentDate || "all"}
+          onChange={(e) => updateFilter("date", e.target.value)}
+          aria-label="Filter by date range"
+        >
+          {DATE_RANGE_FILTERS.map((filter) => (
+            <option key={filter.value} value={filter.value}>
+              {filter.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Event type chips */}
+      <div className="bro-filters">
+        {EVENT_TYPE_FILTERS.map((filter) => {
+          const isOn =
+            currentType === filter.value ||
+            (!currentType && filter.value === "all");
+          return (
+            <button
+              key={filter.value}
+              type="button"
+              className={"cat" + (isOn ? " on" : "")}
+              onClick={() => updateFilter("type", filter.value)}
+              aria-pressed={isOn}
+            >
+              {filter.label}
+            </button>
+          );
+        })}
+        {hasActiveFilters && (
+          <button
+            type="button"
+            className="cat"
+            style={{ borderStyle: "dashed", color: "var(--coral)" }}
+            onClick={clearAllFilters}
+          >
+            <X size={13} style={{ display: "inline", marginRight: 4 }} />
+            Clear all
+          </button>
+        )}
+      </div>
     </div>
   );
 }

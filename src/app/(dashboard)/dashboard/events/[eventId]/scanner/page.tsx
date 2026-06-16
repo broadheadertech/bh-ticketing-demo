@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useQuery } from "convex/react";
-import { api } from "../../../../../../convex/_generated/api";
+import { api } from "../../../../../../../convex/_generated/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScannerLayout } from "@/components/layouts/scanner-layout";
 import { EntryCounter } from "@/components/custom/entry-counter";
@@ -26,6 +26,19 @@ export default function ScannerPage() {
 
   const [scanResult, setScanResult] = useState<ScanResponse | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [selectedDayId, setSelectedDayId] = useState<string>("");
+
+  const days = useMemo(
+    () => (scanAccess && scanAccess.authorized ? scanAccess.days ?? [] : []),
+    [scanAccess]
+  );
+  const isMultiDay = days.length > 0;
+  const selectedDay = days.find((d) => d.id === selectedDayId);
+
+  // Default the day selector to the first day once a multi-day event loads.
+  useEffect(() => {
+    if (isMultiDay && !selectedDayId) setSelectedDayId(days[0].id);
+  }, [isMultiDay, selectedDayId, days]);
 
   // Auto-reset result after 4 seconds
   useEffect(() => {
@@ -37,13 +50,18 @@ export default function ScannerPage() {
   async function handleScan(qrCode: string) {
     if (!qrCode) return; // M2 fix: guard empty strings (Story notes: qrCode="" if QR generation failed)
     if (isProcessing) return;
+    if (isMultiDay && !selectedDayId) return; // wait until a day is chosen
     setScanResult(null); // L1 fix: clear previous result immediately when new scan fires
     setIsProcessing(true);
     try {
       const res = await fetch("/api/scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ qrCode, eventId }),
+        body: JSON.stringify(
+          isMultiDay
+            ? { qrCode, eventId, dayId: selectedDayId, dayLabel: selectedDay?.label }
+            : { qrCode, eventId }
+        ),
       });
       const data: ScanResponse = await res.json();
       setScanResult(data);
@@ -101,6 +119,31 @@ export default function ScannerPage() {
           </Link>
         </div>
 
+        {/* Day selector — multi-day events: choose which day you're checking in */}
+        {isMultiDay && (
+          <div className="w-full max-w-sm">
+            <label className="text-xs font-medium text-muted-foreground">
+              Checking in for
+            </label>
+            <div className="mt-1 flex flex-wrap gap-2">
+              {days.map((d) => (
+                <button
+                  key={d.id}
+                  type="button"
+                  onClick={() => setSelectedDayId(d.id)}
+                  className={`rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
+                    d.id === selectedDayId
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-background hover:bg-accent"
+                  }`}
+                >
+                  {d.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Scanner */}
         <QrScanner onScan={handleScan} paused={isProcessing} />
 
@@ -111,8 +154,8 @@ export default function ScannerPage() {
           <p className="text-sm text-muted-foreground">Verifying ticket...</p>
         )}
 
-        {/* Entry counter — real-time via Convex reactive subscription */}
-        <EntryCounter eventId={eventId} />
+        {/* Entry counter — real-time via Convex reactive subscription (per-day for multi-day) */}
+        <EntryCounter eventId={eventId} dayId={isMultiDay ? selectedDayId : undefined} />
       </div>
     </ScannerLayout>
   );
@@ -131,7 +174,10 @@ function ScanResultCard({ result }: { result: ScanResponse }) {
         <>
           <p className="text-green-700 dark:text-green-300 font-bold text-xl">Valid Ticket</p>
           <p className="text-sm mt-1">{result.buyerEmail}</p>
-          <p className="text-xs text-muted-foreground mt-1">Tier: {result.tierName}</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Tier: {result.tierName}
+            {result.dayLabel ? ` · ${result.dayLabel}` : ""}
+          </p>
         </>
       )}
       {result.status === "already_scanned" && (
@@ -141,6 +187,17 @@ function ScanResultCard({ result }: { result: ScanResponse }) {
             Scanned at: {formatDateTime(result.scannedAt)}
           </p>
         </>
+      )}
+      {result.status === "wrong_day" && (
+        <>
+          <p className="text-red-700 dark:text-red-300 font-bold text-xl">Wrong Day</p>
+          <p className="text-sm mt-1 text-muted-foreground">
+            {result.tierName} is not valid{result.dayLabel ? ` for ${result.dayLabel}` : " for this day"}.
+          </p>
+        </>
+      )}
+      {result.status === "refunded" && (
+        <p className="text-red-700 dark:text-red-300 font-bold text-xl">Refunded Ticket</p>
       )}
       {result.status === "invalid_signature" && (
         <p className="text-red-700 dark:text-red-300 font-bold text-xl">Invalid Ticket</p>

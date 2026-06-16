@@ -97,6 +97,7 @@ export const listEventsForModeration = query({
           title: event.title,
           description: event.description,
           eventType: event.eventType,
+          theme: event.theme ?? null,
           date: event.date,
           time: event.time,
           venueName: event.venueName,
@@ -329,6 +330,135 @@ export const listUsers = query({
       activeRole: u.activeRole,
       isActive: u.isActive,
       createdAt: u.createdAt,
+    }));
+  },
+});
+
+// Top buyers — frequent customers for promo targeting. Aggregates tickets by
+// buyer email: orders, distinct events attended, check-ins, and total spend
+// (joined to tier price, excluding refunded tickets). Admin only.
+export const getTopBuyers = query({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const user = await getAuthenticatedUser(ctx);
+    requireRole(user, "admin");
+
+    const [tickets, tiers] = await Promise.all([
+      ctx.db.query("tickets").collect(),
+      ctx.db.query("ticketTiers").collect(),
+    ]);
+    const tierPrice = new Map(tiers.map((t) => [t._id as string, t.price]));
+
+    type Row = {
+      email: string;
+      orders: number;
+      spent: number; // centavos
+      events: Set<string>;
+      checkedIn: number;
+      lastPurchase: number;
+    };
+    const byBuyer = new Map<string, Row>();
+    for (const t of tickets) {
+      const key = t.buyerEmail;
+      if (!key) continue;
+      let r = byBuyer.get(key);
+      if (!r) {
+        r = { email: key, orders: 0, spent: 0, events: new Set(), checkedIn: 0, lastPurchase: 0 };
+        byBuyer.set(key, r);
+      }
+      r.orders += 1;
+      r.events.add(t.eventId as string);
+      if (t.scannedAt) r.checkedIn += 1;
+      if (t.refundStatus !== "refunded") r.spent += tierPrice.get(t.tierId as string) ?? 0;
+      if (t.createdAt > r.lastPurchase) r.lastPurchase = t.createdAt;
+    }
+
+    const rows = Array.from(byBuyer.values())
+      .map((r) => ({
+        email: r.email,
+        orders: r.orders,
+        spent: r.spent,
+        eventsAttended: r.events.size,
+        checkedIn: r.checkedIn,
+        lastPurchase: r.lastPurchase,
+      }))
+      .sort((a, b) => b.spent - a.spent || b.orders - a.orders);
+
+    return rows.slice(0, args.limit ?? 25);
+  },
+});
+
+// Top organizers — most active creators for partnership outreach. Per organizer:
+// event count, published count, tickets sold, and gross (price*soldCount across
+// their non-cancelled events' tiers). Admin only.
+export const getTopOrganizers = query({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const user = await getAuthenticatedUser(ctx);
+    requireRole(user, "admin");
+
+    const [users, events, tiers] = await Promise.all([
+      ctx.db.query("users").collect(),
+      ctx.db.query("events").collect(),
+      ctx.db.query("ticketTiers").collect(),
+    ]);
+
+    const tiersByEvent = new Map<string, typeof tiers>();
+    for (const t of tiers) {
+      const arr = tiersByEvent.get(t.eventId as string) ?? [];
+      arr.push(t);
+      tiersByEvent.set(t.eventId as string, arr);
+    }
+
+    const organizers = users.filter((u) => u.roles.includes("organization"));
+    const rows = organizers.map((o) => {
+      const own = events.filter((e) => e.creatorId === o._id);
+      const live = own.filter((e) => e.status === "published" || e.status === "on_sale");
+      let gross = 0;
+      let sold = 0;
+      for (const e of own) {
+        if (e.status === "cancelled") continue;
+        for (const t of tiersByEvent.get(e._id as string) ?? []) {
+          gross += t.price * t.soldCount;
+          sold += t.soldCount;
+        }
+      }
+      return {
+        userId: o._id,
+        name: o.name,
+        email: o.email,
+        eventsCount: own.length,
+        liveCount: live.length,
+        ticketsSold: sold,
+        gross, // centavos
+      };
+    });
+
+    return rows
+      .filter((r) => r.eventsCount > 0)
+      .sort((a, b) => b.gross - a.gross || b.eventsCount - a.eventsCount)
+      .slice(0, args.limit ?? 25);
+  },
+});
+
+// Recent audit log entries with actor names resolved. Admin only.
+export const listAuditLogs = query({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const user = await getAuthenticatedUser(ctx);
+    requireRole(user, "admin");
+
+    const logs = await ctx.db.query("auditLogs").order("desc").take(args.limit ?? 100);
+    const users = await ctx.db.query("users").collect();
+    const nameById = new Map(users.map((u) => [u._id as string, u.name]));
+
+    return logs.map((l) => ({
+      _id: l._id,
+      action: l.action,
+      actorName: nameById.get(l.actorId as string) ?? "System",
+      targetType: l.targetType,
+      targetId: l.targetId,
+      createdAt: l.createdAt,
     }));
   },
 });

@@ -1,7 +1,28 @@
 import { query, mutation, internalMutation } from "./_generated/server";
 import { v, ConvexError } from "convex/values";
 import { getAuthenticatedUser } from "./lib/auth";
-import { isValidRole, SELF_ASSIGNABLE_ROLES } from "./lib/roles";
+import { isValidRole, SELF_ASSIGNABLE_ROLES, requireAnyRole } from "./lib/roles";
+
+// Artists a creator can pick for an event lineup (public display names).
+export const listArtists = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await getAuthenticatedUser(ctx);
+    requireAnyRole(user, ["artist", "organization", "admin"]);
+
+    const allUsers = await ctx.db.query("users").collect();
+    const artists = allUsers.filter((u) => u.roles.includes("artist") && u.isActive);
+    return await Promise.all(
+      artists.map(async (u) => {
+        const profile = await ctx.db
+          .query("creatorProfiles")
+          .withIndex("by_user_id", (q) => q.eq("userId", u._id))
+          .unique();
+        return { _id: u._id, name: profile?.displayName ?? u.name, email: u.email };
+      })
+    );
+  },
+});
 
 export const getUser = query({
   args: { clerkId: v.string() },

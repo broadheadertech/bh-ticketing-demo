@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="PHLive">
+  <rect width="512" height="512" rx="112" fill="#FBF6EC"/>
+  <rect x="96" y="96" width="320" height="320" rx="72" fill="#EA5A3D"/>
+  <g fill="#FBF6EC">
+    <rect x="150" y="206" width="212" height="34" rx="10"/>
+    <rect x="150" y="272" width="150" height="34" rx="10"/>
+  </g>
+</svg>

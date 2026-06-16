@@ -1,13 +1,16 @@
 "use server";
 
-import { stripe } from "@/lib/stripe/config";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../../convex/_generated/api";
 import { purchaseSchema } from "@/lib/validators/ticket";
+import {
+  getProvider,
+  resolveProviderId,
+  DEFAULT_FEE_PERCENT,
+} from "@/lib/payments";
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-const PLATFORM_FEE_PERCENT = 0.05; // 5% platform fee
 
 export async function purchaseTickets(input: {
   eventId: string;
@@ -26,15 +29,21 @@ export async function purchaseTickets(input: {
       return { success: false, error: parsed.error.issues[0].message };
     }
 
-    // Fetch event server-side to get creator's Stripe account (never trust client)
+    // Fetch event server-side (never trust client). Resolves the payment provider
+    // from the event override → organizer default → platform default (PayMongo).
     const event = await convex.query(api.events.getPublicEventById, {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       eventId: input.eventId as any,
     });
-    if (!event.creatorStripeAccountId) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ev = event as any;
+    const providerId = resolveProviderId(ev.paymentProvider, ev.creatorPaymentProvider);
+    const feePercent = ev.creatorFeePercent ?? DEFAULT_FEE_PERCENT;
+
+    // Stripe (international) requires the organizer's connected account for the split.
+    if (providerId === "stripe" && !event.creatorStripeAccountId) {
       return { success: false, error: "Creator has not connected a payment account" };
     }
-    const creatorStripeAccountId = event.creatorStripeAccountId;
 
     // Fetch tiers server-side (never trust client prices)
     const tiers = await convex.query(api.ticketTiers.getPublicTiersByEventId, {
@@ -42,15 +51,8 @@ export async function purchaseTickets(input: {
       eventId: input.eventId as any,
     });
 
-    // Inventory check + build line items
-    const lineItems: {
-      price_data: {
-        currency: string;
-        product_data: { name: string };
-        unit_amount: number;
-      };
-      quantity: number;
-    }[] = [];
+    // Inventory check + build provider-agnostic line items (amounts in centavos)
+    const lineItems: { name: string; amount: number; quantity: number }[] = [];
     let totalAmount = 0;
 
     for (const selection of input.tierSelections) {
@@ -62,11 +64,8 @@ export async function purchaseTickets(input: {
       }
       totalAmount += tier.price * selection.quantity;
       lineItems.push({
-        price_data: {
-          currency: "php",
-          product_data: { name: tier.name },
-          unit_amount: tier.price, // already in centavos
-        },
+        name: tier.name,
+        amount: tier.price, // already in centavos
         quantity: selection.quantity,
       });
     }
@@ -84,49 +83,38 @@ export async function purchaseTickets(input: {
       }
       appliedPromoCode = promo.code;
 
-      // Apply discount to each line item
       for (const item of lineItems) {
-        const originalPrice = item.price_data.unit_amount;
         if (promo.discountType === "percentage") {
-          item.price_data.unit_amount = Math.round(
-            originalPrice * (1 - promo.discountValue / 100)
-          );
+          item.amount = Math.round(item.amount * (1 - promo.discountValue / 100));
         } else {
-          item.price_data.unit_amount = Math.max(
-            0,
-            originalPrice - promo.discountValue
-          );
+          item.amount = Math.max(0, item.amount - promo.discountValue);
         }
       }
-
-      // Recalculate total with discount
-      totalAmount = lineItems.reduce(
-        (sum, item) => sum + item.price_data.unit_amount * item.quantity,
-        0
-      );
+      totalAmount = lineItems.reduce((sum, item) => sum + item.amount * item.quantity, 0);
     }
 
-    // Create Stripe Checkout Session — Separate Charges and Transfers
-    const session = await stripe.checkout.sessions.create({
-      mode: "payment",
-      line_items: lineItems,
-      payment_intent_data: {
-        application_fee_amount: Math.round(totalAmount * PLATFORM_FEE_PERCENT),
-        transfer_data: {
-          destination: creatorStripeAccountId,
-        },
-      },
+    // Hand off to the resolved provider (PayMongo: platform-collect; Stripe: Connect).
+    const provider = getProvider(providerId);
+    const result = await provider.createCheckout({
+      eventId: input.eventId,
+      buyerEmail: input.buyerEmail,
+      lineItems,
       metadata: {
         eventId: input.eventId,
         tierSelections: JSON.stringify(input.tierSelections),
         buyerEmail: input.buyerEmail,
         ...(appliedPromoCode ? { promoCode: appliedPromoCode } : {}),
       },
-      success_url: `${APP_URL}/events/${input.eventId}/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${APP_URL}/events/${input.eventId}`,
+      successUrl:
+        providerId === "stripe"
+          ? `${APP_URL}/events/${input.eventId}/success?session_id={CHECKOUT_SESSION_ID}`
+          : `${APP_URL}/events/${input.eventId}/success`,
+      cancelUrl: `${APP_URL}/events/${input.eventId}`,
+      feeAmount: Math.round((totalAmount * feePercent) / 100),
+      destinationAccountRef: event.creatorStripeAccountId ?? null,
     });
 
-    return { success: true, data: { url: session.url! } };
+    return { success: true, data: { url: result.url } };
   } catch (err) {
     return {
       success: false,

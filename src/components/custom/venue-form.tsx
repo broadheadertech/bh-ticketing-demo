@@ -12,7 +12,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
-import { createVenueSchema, type CreateVenueFormData } from "@/lib/validators/venue";
+import {
+  createVenueSchema,
+  type CreateVenueFormData,
+  type CreateVenueFormInput,
+} from "@/lib/validators/venue";
 import { validateImageFile } from "@/lib/validators/image-upload";
 import { showSuccess, showErrorFromCatch } from "@/lib/utils/toast-helpers";
 import { VENUE_AMENITIES, MAX_VENUE_PHOTOS } from "@/lib/utils/constants";
@@ -72,7 +76,7 @@ export function VenueForm({ mode, venueId, initialData }: VenueFormProps) {
     setValue,
     watch,
     formState: { errors, isSubmitting },
-  } = useForm<CreateVenueFormData>({
+  } = useForm<CreateVenueFormInput, unknown, CreateVenueFormData>({
     resolver: zodResolver(createVenueSchema),
     defaultValues: {
       name: initialData?.name ?? "",
