@@ -192,7 +192,7 @@ describe("getEventById query contract", () => {
 describe("getEventById with creatorProfile contract", () => {
   it("returns creatorProfile with displayName and profilePhotoUrl when profile exists", () => {
     const creatorProfile = {
-      displayName: "PHLive Racing",
+      displayName: "TIX.PH Racing",
       profilePhotoUrl: "https://example.com/logo.png",
     };
     const result = {
@@ -208,7 +208,7 @@ describe("getEventById with creatorProfile contract", () => {
     };
 
     expect(result.creatorProfile).not.toBeNull();
-    expect(result.creatorProfile?.displayName).toBe("PHLive Racing");
+    expect(result.creatorProfile?.displayName).toBe("TIX.PH Racing");
     expect(result.creatorProfile?.profilePhotoUrl).toBe("https://example.com/logo.png");
   });
 
@@ -231,7 +231,7 @@ describe("getEventById with creatorProfile contract", () => {
 
   it("returns profilePhotoUrl as null when profile has no photo", () => {
     const creatorProfile = {
-      displayName: "PHLive Racing",
+      displayName: "TIX.PH Racing",
       profilePhotoUrl: undefined,
     };
     const result = {
@@ -244,7 +244,7 @@ describe("getEventById with creatorProfile contract", () => {
     };
 
     expect(result.creatorProfile).not.toBeNull();
-    expect(result.creatorProfile?.displayName).toBe("PHLive Racing");
+    expect(result.creatorProfile?.displayName).toBe("TIX.PH Racing");
     expect(result.creatorProfile?.profilePhotoUrl).toBeNull();
   });
 
@@ -252,7 +252,7 @@ describe("getEventById with creatorProfile contract", () => {
     const fullProfile = {
       _id: "profile_1",
       userId: "user_123",
-      displayName: "PHLive Racing",
+      displayName: "TIX.PH Racing",
       profilePhotoUrl: "https://example.com/logo.png",
       bio: "We run racing events",
       websiteUrl: "https://phlive.com",

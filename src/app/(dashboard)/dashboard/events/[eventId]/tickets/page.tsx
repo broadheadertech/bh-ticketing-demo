@@ -21,7 +21,7 @@ export default function TicketTierConfigPage() {
   const tiers = useQuery(api.ticketTiers.getTiersByEventId, { eventId });
 
   useEffect(() => {
-    document.title = "Configure Ticket Tiers | PHLive";
+    document.title = "Configure Ticket Tiers | TIX.PH";
   }, []);
 
   return (

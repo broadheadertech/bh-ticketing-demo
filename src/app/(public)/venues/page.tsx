@@ -8,11 +8,11 @@ import {
 } from "./_components/venues-grid";
 
 export const metadata: Metadata = {
-  title: "Discover Venues | PHLive",
+  title: "Discover Venues | TIX.PH",
   description:
     "Browse venue spaces across the Philippines — concert halls, event spaces, and more.",
   openGraph: {
-    title: "Discover Venues | PHLive",
+    title: "Discover Venues | TIX.PH",
     description: "Browse venue spaces across the Philippines.",
     type: "website",
   },

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const metadata: Metadata = {
-  title: "Page Not Found | PHLive",
+  title: "Page Not Found | TIX.PH",
 };
 
 export default function NotFound() {

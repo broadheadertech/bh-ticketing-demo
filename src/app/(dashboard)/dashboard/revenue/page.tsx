@@ -28,7 +28,7 @@ export default function RevenuePage() {
   const data = useQuery(api.events.getMyEventsRevenue);
 
   useEffect(() => {
-    document.title = "Revenue | PHLive";
+    document.title = "Revenue | TIX.PH";
   }, []);
 
   return (

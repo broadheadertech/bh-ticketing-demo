@@ -23,7 +23,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       {/* Desktop sidebar */}
       <aside className="hidden w-64 border-r bg-background md:flex md:flex-col">
         <div className="p-6">
-          <span className="text-xl font-bold">PHLive</span>
+          <span className="text-xl font-bold">TIX.PH</span>
         </div>
         <div className="px-4 pb-3">
           <RoleSwitcher />
@@ -49,7 +49,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             </SheetTrigger>
             <SheetContent side="left" className="w-64 p-0">
               <SheetHeader className="p-6 pb-3">
-                <SheetTitle className="text-xl font-bold">PHLive</SheetTitle>
+                <SheetTitle className="text-xl font-bold">TIX.PH</SheetTitle>
               </SheetHeader>
               <div className="px-4 pb-3">
                 <RoleSwitcher />
@@ -60,7 +60,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               </div>
             </SheetContent>
           </Sheet>
-          <span className="text-lg font-semibold md:hidden">PHLive</span>
+          <span className="text-lg font-semibold md:hidden">TIX.PH</span>
           <div className="ml-auto">
             <NotificationBell />
           </div>

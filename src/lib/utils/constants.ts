@@ -1,4 +1,4 @@
-export const APP_NAME = "PHLive";
+export const APP_NAME = "TIX.PH";
 
 export const DEFAULT_ROLE = "attendee" as const;
 

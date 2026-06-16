@@ -156,7 +156,7 @@ function GalleryWall() {
         <div className="eyebrow">The gallery-wall principle</div>
         <h2>We stay the quiet frame. Every event brings the color.</h2>
         <p>
-          PHLive is one calm, trustworthy host. Organizers skin their own event
+          TIX.PH is one calm, trustworthy host. Organizers skin their own event
           pages — gradients, type, motion — and our neutral chrome makes each
           one pop. Same reliable checkout underneath, every time.
         </p>

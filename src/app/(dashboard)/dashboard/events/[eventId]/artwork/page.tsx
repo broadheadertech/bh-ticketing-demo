@@ -19,7 +19,7 @@ export default function ArtworkUploadPage() {
   const event = useQuery(api.events.getEventById, { eventId });
 
   useEffect(() => {
-    document.title = "Upload Artwork | PHLive";
+    document.title = "Upload Artwork | TIX.PH";
   }, []);
 
   return (

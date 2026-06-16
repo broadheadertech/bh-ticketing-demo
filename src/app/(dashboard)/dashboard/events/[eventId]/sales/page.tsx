@@ -45,7 +45,7 @@ export default function EventSalesPage() {
 
   useEffect(() => {
     if (data) {
-      document.title = `${data.event.title} - Sales | PHLive`;
+      document.title = `${data.event.title} - Sales | TIX.PH`;
     }
   }, [data]);
 

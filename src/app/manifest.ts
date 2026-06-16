@@ -4,8 +4,8 @@ import type { MetadataRoute } from "next";
 // and launch in standalone app chrome, matching the TIX.PH Mobile design.
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "PHLive — Universal Ticketing",
-    short_name: "PHLive",
+    name: "TIX.PH — Universal Ticketing",
+    short_name: "TIX.PH",
     description: "Discover and book tickets for live events across the Philippines",
     start_url: "/",
     scope: "/",

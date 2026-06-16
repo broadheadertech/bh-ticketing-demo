@@ -1,4 +1,4 @@
-// lib/linking.ts — the single source of truth for deep linking in PHLive.
+// lib/linking.ts — the single source of truth for deep linking in TIX.PH.
 //
 // SCHEME: "phlive" (declared in app.json -> expo.scheme). Every deep link below
 // resolves to `phlive://<path>` on a device, or an `exp://…/--/<path>` URL while

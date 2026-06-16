@@ -38,14 +38,14 @@ const spaceMono = Space_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PHLive - Universal Ticketing System",
+  title: "TIX.PH - Universal Ticketing System",
   description:
     "Discover and book tickets for live events across the Philippines",
   // iOS standalone (Add to Home Screen) — matches the TIX.PH Mobile app shell.
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "PHLive",
+    title: "TIX.PH",
   },
 };
 

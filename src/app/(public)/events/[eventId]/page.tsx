@@ -19,10 +19,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const event = await fetchQuery(api.events.getPublicEventDetailPage, {
       eventId: eventId as Id<"events">,
     });
-    if (!event) return { title: "Event Not Found | PHLive" };
+    if (!event) return { title: "Event Not Found | TIX.PH" };
     const description = event.description.slice(0, 160);
     return {
-      title: `${event.title} | PHLive`,
+      title: `${event.title} | TIX.PH`,
       description,
       openGraph: {
         title: event.title,
@@ -38,7 +38,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       },
     };
   } catch {
-    return { title: "Event | PHLive" };
+    return { title: "Event | TIX.PH" };
   }
 }
 

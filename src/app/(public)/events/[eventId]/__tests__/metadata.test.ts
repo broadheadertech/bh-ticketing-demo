@@ -21,10 +21,10 @@ function buildOgMetadata(
   ogType?: string;
   twitterCard?: string;
 } {
-  if (!event) return { title: "Event Not Found | PHLive", hasOgImage: false, hasTwitterImage: false };
+  if (!event) return { title: "Event Not Found | TIX.PH", hasOgImage: false, hasTwitterImage: false };
   const description = event.description.slice(0, 160);
   return {
-    title: `${event.title} | PHLive`,
+    title: `${event.title} | TIX.PH`,
     description,
     hasOgImage: !!event.artworkUrl,
     hasTwitterImage: !!event.artworkUrl,
@@ -36,17 +36,17 @@ function buildOgMetadata(
 describe("generateMetadata OG contract", () => {
   it("null event returns fallback title", () => {
     const meta = buildOgMetadata(null);
-    expect(meta.title).toBe("Event Not Found | PHLive");
+    expect(meta.title).toBe("Event Not Found | TIX.PH");
     expect(meta.hasOgImage).toBe(false);
   });
 
-  it("title format is '{event title} | PHLive'", () => {
+  it("title format is '{event title} | TIX.PH'", () => {
     const meta = buildOgMetadata({
       title: "Jazz Night",
       description: "A great show",
       artworkUrl: null,
     });
-    expect(meta.title).toBe("Jazz Night | PHLive");
+    expect(meta.title).toBe("Jazz Night | TIX.PH");
   });
 
   it("description is truncated to 160 chars", () => {

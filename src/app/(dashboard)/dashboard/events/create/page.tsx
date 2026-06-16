@@ -3,7 +3,7 @@ import { CreateEventWizard } from "@/components/custom/create-event-wizard";
 import { RoleGuard } from "@/components/custom/role-guard";
 
 export const metadata: Metadata = {
-  title: "Create Event | PHLive",
+  title: "Create Event | TIX.PH",
 };
 
 export default function CreateEventPage() {

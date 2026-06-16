@@ -1,4 +1,4 @@
-# TIX.PH / PHLive — Expo mobile app
+# TIX.PH / TIX.PH — Expo mobile app
 
 The native (iOS + Android) client for the Universal Ticketing System. It reuses
 the **same Convex backend** and **Clerk auth** as the web app, so it talks to the

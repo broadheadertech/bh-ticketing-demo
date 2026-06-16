@@ -79,7 +79,7 @@ export default function CertificatePage() {
             </div>
             <div className="text-right">
               <p className="border-t border-gray-400 pt-1 text-xs text-muted-foreground">
-                Issued via PHLive · {formatDate(cert.issuedAt)}
+                Issued via TIX.PH · {formatDate(cert.issuedAt)}
               </p>
             </div>
           </div>

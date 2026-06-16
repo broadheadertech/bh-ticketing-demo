@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "PHLive",
+    "name": "TIX.PH",
     "slug": "phlive",
     "scheme": "phlive",
     "version": "1.0.0",
@@ -43,7 +43,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "PHLive uses your location to show events happening near you."
+          "locationWhenInUsePermission": "TIX.PH uses your location to show events happening near you."
         }
       ]
     ],

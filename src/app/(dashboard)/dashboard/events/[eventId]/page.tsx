@@ -88,7 +88,7 @@ export default function EventDetailPage() {
 
   useEffect(() => {
     if (event) {
-      document.title = `${event.title} | PHLive`;
+      document.title = `${event.title} | TIX.PH`;
     }
   }, [event]);
 

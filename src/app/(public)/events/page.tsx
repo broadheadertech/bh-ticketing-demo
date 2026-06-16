@@ -5,11 +5,11 @@ import { api } from "../../../../convex/_generated/api";
 import { EventsGrid, EventsGridSkeleton } from "./_components/events-grid";
 
 export const metadata: Metadata = {
-  title: "Discover Events | PHLive",
+  title: "Discover Events | TIX.PH",
   description:
     "Browse upcoming live events across the Philippines — concerts, racing, seminars, and more.",
   openGraph: {
-    title: "Discover Events | PHLive",
+    title: "Discover Events | TIX.PH",
     description: "Browse upcoming live events across the Philippines.",
     type: "website",
   },

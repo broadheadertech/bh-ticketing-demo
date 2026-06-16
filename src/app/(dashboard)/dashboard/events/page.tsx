@@ -57,7 +57,7 @@ export default function EventsPage() {
     : undefined;
 
   useEffect(() => {
-    document.title = "My Events | PHLive";
+    document.title = "My Events | TIX.PH";
   }, []);
 
   function handleStatusFilterChange(status: string) {

@@ -68,7 +68,7 @@ describe("notification return shape", () => {
       _id: "notifications:abc",
       type: "system",
       title: "Welcome!",
-      message: "Thanks for joining PHLive",
+      message: "Thanks for joining TIX.PH",
       entityType: undefined,
       entityId: undefined,
       read: false,

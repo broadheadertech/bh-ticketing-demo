@@ -87,7 +87,7 @@ describe("totalDisplay formatting contract", () => {
 describe("TicketConfirmationEmail props contract", () => {
   it("required props include eventTitle, eventDate, eventTime, tiers, totalDisplay, buyerEmail", () => {
     const props = {
-      eventTitle: "PHLive Music Fest",
+      eventTitle: "TIX.PH Music Fest",
       eventDate: "March 15, 2026",
       eventTime: "8:00 PM",
       tiers: [{ name: "General Admission", quantity: 2 }],
@@ -146,7 +146,7 @@ describe("TicketConfirmationEmail props contract", () => {
 describe("EventCancellationEmail props contract", () => {
   it("required props include eventTitle and eventDate", () => {
     const props = {
-      eventTitle: "PHLive Music Fest",
+      eventTitle: "TIX.PH Music Fest",
       eventDate: "March 15, 2026",
     };
     expect(props).toHaveProperty("eventTitle");
