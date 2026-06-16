@@ -1,12 +1,11 @@
 "use server";
 
 import { getProvider } from "@/lib/payments";
-import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../../convex/_generated/api";
+import { getConvexHttpClient } from "@/lib/convex-http";
 import { sendRefundConfirmation } from "./email";
 import { formatCurrency } from "@/lib/utils/format";
 
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 const WEBHOOK_SECRET = process.env.CONVEX_WEBHOOK_SECRET!;
 
 type PartialRefundResult = {
@@ -20,7 +19,7 @@ export async function refundSingleTicket(
 ): Promise<PartialRefundResult> {
   try {
     // Fetch ticket
-    const ticket = await convex.query(api.tickets.getTicketByIdForScan, {
+    const ticket = await getConvexHttpClient().query(api.tickets.getTicketByIdForScan, {
       ticketId,
       querySecret: WEBHOOK_SECRET,
     });
@@ -42,7 +41,7 @@ export async function refundSingleTicket(
 
     // For free tickets (price 0), just mark as voided
     if (!tierPrice || tierPrice === 0) {
-      await convex.mutation(api.tickets.updateTicketRefundStatus, {
+      await getConvexHttpClient().mutation(api.tickets.updateTicketRefundStatus, {
         webhookSecret: WEBHOOK_SECRET,
         ticketId: ticketId as never,
         refundStatus: "not_applicable",
@@ -66,7 +65,7 @@ export async function refundSingleTicket(
     }
 
     // Update ticket status
-    await convex.mutation(api.tickets.updateTicketRefundStatus, {
+    await getConvexHttpClient().mutation(api.tickets.updateTicketRefundStatus, {
       webhookSecret: WEBHOOK_SECRET,
       ticketId: ticketId as never,
       refundStatus: "refunded",

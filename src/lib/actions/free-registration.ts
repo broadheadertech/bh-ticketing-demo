@@ -1,12 +1,10 @@
 "use server";
 
-import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../../convex/_generated/api";
+import { getConvexHttpClient } from "@/lib/convex-http";
 import { freeRegistrationSchema } from "@/lib/validators/ticket";
 import { sendPurchaseConfirmation } from "@/lib/actions/email";
 import { generateQrCodeData } from "@/lib/qr/generate";
-
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
 export async function registerFreeEvent(input: {
   eventId: string;
@@ -25,7 +23,7 @@ export async function registerFreeEvent(input: {
     }
 
     // Fetch tiers server-side — NEVER trust client-supplied price data
-    const tiers = await convex.query(api.ticketTiers.getPublicTiersByEventId, {
+    const tiers = await getConvexHttpClient().query(api.ticketTiers.getPublicTiersByEventId, {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       eventId: input.eventId as any,
     });
@@ -40,7 +38,7 @@ export async function registerFreeEvent(input: {
         return { success: false, error: "Some registration slots are no longer available" };
     }
 
-    await convex.mutation(api.tickets.registerFreeTickets, {
+    await getConvexHttpClient().mutation(api.tickets.registerFreeTickets, {
       registrationSecret: process.env.CONVEX_WEBHOOK_SECRET!,
       eventId: input.eventId,
       tierSelections: input.tierSelections,
@@ -50,7 +48,7 @@ export async function registerFreeEvent(input: {
     // Generate and store QR codes for the registered tickets
     try {
       const syntheticSessionId = `free_${input.eventId}_${input.buyerEmail}`;
-      const tickets = await convex.query(
+      const tickets = await getConvexHttpClient().query(
         api.tickets.getTicketsByStripeSessionId,
         {
           stripeSessionId: syntheticSessionId,
@@ -67,7 +65,7 @@ export async function registerFreeEvent(input: {
         }),
       }));
       if (qrUpdates.length > 0) {
-        await convex.mutation(api.tickets.patchTicketsQrCodes, {
+        await getConvexHttpClient().mutation(api.tickets.patchTicketsQrCodes, {
           webhookSecret: process.env.CONVEX_WEBHOOK_SECRET!,
           updates: qrUpdates,
         });

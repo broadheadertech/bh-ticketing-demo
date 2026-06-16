@@ -1,12 +1,11 @@
 "use server";
 
 import { getProvider } from "@/lib/payments";
-import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../../convex/_generated/api";
+import { getConvexHttpClient } from "@/lib/convex-http";
 import { sendRefundConfirmation } from "./email";
 import { formatCurrency } from "@/lib/utils/format";
 
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 const WEBHOOK_SECRET = process.env.CONVEX_WEBHOOK_SECRET!;
 
 type RefundResult = {
@@ -21,7 +20,7 @@ export async function processEventRefunds(
 ): Promise<RefundResult> {
   try {
     // Fetch tickets with tier prices
-    const tickets = await convex.query(
+    const tickets = await getConvexHttpClient().query(
       api.tickets.getTicketsByEventForRefund,
       { eventId: eventId as never, querySecret: WEBHOOK_SECRET }
     );
@@ -60,7 +59,7 @@ export async function processEventRefunds(
 
       if (allFree) {
         for (const ticket of sessionTickets) {
-          await convex.mutation(
+          await getConvexHttpClient().mutation(
             api.tickets.updateTicketRefundStatus,
             {
               webhookSecret: WEBHOOK_SECRET,
@@ -84,7 +83,7 @@ export async function processEventRefunds(
 
         // Mark tickets as refunded
         for (const ticket of sessionTickets) {
-          await convex.mutation(
+          await getConvexHttpClient().mutation(
             api.tickets.updateTicketRefundStatus,
             {
               webhookSecret: WEBHOOK_SECRET,
@@ -102,7 +101,7 @@ export async function processEventRefunds(
       } catch (err) {
         // Mark tickets as failed, continue processing others
         for (const ticket of sessionTickets) {
-          await convex.mutation(
+          await getConvexHttpClient().mutation(
             api.tickets.updateTicketRefundStatus,
             {
               webhookSecret: WEBHOOK_SECRET,

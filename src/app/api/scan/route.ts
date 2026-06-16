@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
-import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../../../convex/_generated/api";
+import { getConvexHttpClient } from "@/lib/convex-http";
 import { verifySignature, type QrPayload } from "@/lib/qr/signing";
 
 export type ScanResponse =
@@ -14,7 +14,6 @@ export type ScanResponse =
   | { status: "not_found" }
   | { status: "error"; message: string };
 
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
 export async function POST(req: NextRequest): Promise<NextResponse<ScanResponse>> {
   try {
@@ -53,7 +52,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ScanResponse>
     }
 
     // 4. Fetch ticket from Convex
-    const ticket = await convex.query(api.tickets.getTicketByIdForScan, {
+    const ticket = await getConvexHttpClient().query(api.tickets.getTicketByIdForScan, {
       ticketId: payload.ticketId,
       querySecret: process.env.CONVEX_WEBHOOK_SECRET!,
     });
@@ -80,7 +79,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ScanResponse>
     // 8a. Per-day check-in (multi-day events): a full pass admits each day once,
     //     a day-pass admits only its own day. Validation + recording is atomic in Convex.
     if (dayId) {
-      const result = await convex.mutation(api.tickets.scanTicketForDay, {
+      const result = await getConvexHttpClient().mutation(api.tickets.scanTicketForDay, {
         scanSecret: process.env.CONVEX_WEBHOOK_SECRET!,
         ticketId: payload.ticketId,
         dayId,
@@ -111,7 +110,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ScanResponse>
       return NextResponse.json({ status: "already_scanned", scannedAt: ticket.scannedAt });
     }
 
-    await convex.mutation(api.tickets.markTicketScanned, {
+    await getConvexHttpClient().mutation(api.tickets.markTicketScanned, {
       scanSecret: process.env.CONVEX_WEBHOOK_SECRET!,
       ticketId: payload.ticketId,
       scannedBy: scannerEmail,

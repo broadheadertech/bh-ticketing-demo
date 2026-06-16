@@ -1,15 +1,14 @@
 "use server";
 
-import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../../convex/_generated/api";
 import { purchaseSchema } from "@/lib/validators/ticket";
+import { getConvexHttpClient } from "@/lib/convex-http";
 import {
   getProvider,
   resolveProviderId,
   DEFAULT_FEE_PERCENT,
 } from "@/lib/payments";
 
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
 export async function purchaseTickets(input: {
@@ -31,7 +30,7 @@ export async function purchaseTickets(input: {
 
     // Fetch event server-side (never trust client). Resolves the payment provider
     // from the event override → organizer default → platform default (PayMongo).
-    const event = await convex.query(api.events.getPublicEventById, {
+    const event = await getConvexHttpClient().query(api.events.getPublicEventById, {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       eventId: input.eventId as any,
     });
@@ -46,7 +45,7 @@ export async function purchaseTickets(input: {
     }
 
     // Fetch tiers server-side (never trust client prices)
-    const tiers = await convex.query(api.ticketTiers.getPublicTiersByEventId, {
+    const tiers = await getConvexHttpClient().query(api.ticketTiers.getPublicTiersByEventId, {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       eventId: input.eventId as any,
     });
@@ -73,7 +72,7 @@ export async function purchaseTickets(input: {
     // Apply promo code discount if provided
     let appliedPromoCode: string | undefined;
     if (input.promoCode) {
-      const promo = await convex.query(api.promoCodes.validatePromoCode, {
+      const promo = await getConvexHttpClient().query(api.promoCodes.validatePromoCode, {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         eventId: input.eventId as any,
         code: input.promoCode,

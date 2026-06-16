@@ -1,15 +1,13 @@
 "use server";
 
-import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../../convex/_generated/api";
+import { getConvexHttpClient } from "@/lib/convex-http";
 import { getResend, FROM_EMAIL } from "@/lib/email/config";
 import TicketConfirmationEmail from "@/lib/email/templates/ticket-confirmation";
 import EventCancellationEmail from "@/lib/email/templates/event-cancellation";
 import RefundConfirmationEmail from "@/lib/email/templates/refund-confirmation";
 import { formatCurrency, formatDate } from "@/lib/utils/format";
 import QRCode from "qrcode";
-
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
 /** Formats first 8 chars of a Convex ticket ID as a human-readable code: e.g. "JX7A-BC12"
  * MUST stay in sync with formatTextCode in src/components/custom/ticket-qr-display.tsx */
@@ -29,9 +27,9 @@ export async function sendPurchaseConfirmation(params: {
   try {
     const [event, tiers] = await Promise.all([
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      convex.query(api.events.getPublicEventById, { eventId: params.eventId as any }),
+      getConvexHttpClient().query(api.events.getPublicEventById, { eventId: params.eventId as any }),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      convex.query(api.ticketTiers.getPublicTiersByEventId, { eventId: params.eventId as any }),
+      getConvexHttpClient().query(api.ticketTiers.getPublicTiersByEventId, { eventId: params.eventId as any }),
     ]);
 
     const tierRows = params.tierSelections
@@ -50,7 +48,7 @@ export async function sendPurchaseConfirmation(params: {
     let qrItems: { qrDataUrl: string; textCode: string }[] = [];
     if (params.stripeSessionId) {
       try {
-        const tickets = await convex.query(
+        const tickets = await getConvexHttpClient().query(
           api.tickets.getTicketsByStripeSessionId,
           {
             stripeSessionId: params.stripeSessionId,
@@ -113,8 +111,8 @@ export async function sendEventCancellation(params: {
   try {
     const [event, emails] = await Promise.all([
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      convex.query(api.events.getPublicEventById, { eventId: params.eventId as any }),
-      convex.query(api.tickets.getUniqueEmailsByEventId, {
+      getConvexHttpClient().query(api.events.getPublicEventById, { eventId: params.eventId as any }),
+      getConvexHttpClient().query(api.tickets.getUniqueEmailsByEventId, {
         eventId: params.eventId,
         querySecret: process.env.CONVEX_WEBHOOK_SECRET!,
       }),
