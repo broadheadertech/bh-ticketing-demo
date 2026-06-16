@@ -2,8 +2,9 @@
 
 import "./backoffice.css";
 import Link from "next/link";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
+import { useUser } from "@clerk/nextjs";
 import { api } from "../../../convex/_generated/api";
 import { Sidebar, Topbar, ROLE_META, DEFAULT_PAGE, PAGE_TITLE, type BoRole } from "./_components/shell";
 import { Icon } from "./_components/widgets";
@@ -84,22 +85,34 @@ function BackOfficeApp({
 }
 
 export default function BackOfficePage() {
+  const { isLoaded, isSignedIn } = useUser();
   const me = useQuery(api.users.getCurrentUser);
   const switchRoleMut = useMutation(api.users.switchRole);
+  const ensureUser = useMutation(api.users.ensureUser);
 
-  if (me === undefined) {
+  // Signed into Clerk but no Convex record yet (webhook didn't run / fresh deploy):
+  // self-provision an attendee record so the user gets their dashboard.
+  useEffect(() => {
+    if (isLoaded && isSignedIn && me === null) {
+      ensureUser().catch(() => {});
+    }
+  }, [isLoaded, isSignedIn, me, ensureUser]);
+
+  // Loading: Clerk still booting, or the query / first provision in flight.
+  if (!isLoaded || me === undefined || (isSignedIn && me === null)) {
     return (
       <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "#fbf6ec", color: "#8a8073" }}>
-        Loading back office…
+        Loading your dashboard…
       </div>
     );
   }
 
+  // Truly signed out.
   if (me === null) {
     return (
       <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "#fbf6ec", color: "#17120c", textAlign: "center", padding: 24 }}>
         <div>
-          <p style={{ fontWeight: 700, marginBottom: 12 }}>Please sign in to access the back office.</p>
+          <p style={{ fontWeight: 700, marginBottom: 12 }}>Please sign in to access your dashboard.</p>
           <Link href="/sign-in" style={{ background: "#ea5a3d", color: "#fff", padding: "11px 18px", borderRadius: 11, fontWeight: 700, textDecoration: "none" }}>Sign in</Link>
         </div>
       </div>

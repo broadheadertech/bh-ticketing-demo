@@ -114,6 +114,43 @@ export const getCurrentUser = query({
   },
 });
 
+// Self-provisioning: upsert the signed-in user's row from their Clerk identity.
+// The Clerk webhook (http.ts) normally creates users on sign-up, but webhooks can
+// be unconfigured/delayed in a fresh deploy — so the client calls this on load to
+// guarantee a record exists. New users default to the "attendee" (customer) role.
+export const ensureUser = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return null;
+
+    const existing = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .unique();
+    if (existing) return existing._id;
+
+    const email = identity.email ?? "";
+    const name =
+      identity.name ??
+      identity.nickname ??
+      (email ? email.split("@")[0] : "") ??
+      "Guest";
+
+    return await ctx.db.insert("users", {
+      clerkId: identity.subject,
+      name,
+      email,
+      image: identity.pictureUrl ?? undefined,
+      roles: ["attendee"],
+      activeRole: "attendee",
+      isActive: true,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+  },
+});
+
 export const addRole = mutation({
   args: { role: v.string() },
   handler: async (ctx, args) => {
